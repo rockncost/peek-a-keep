@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peek-a-Keep · Browser integration checks</title>
+  <style>
+    :root{font:15px/1.5 system-ui,sans-serif;color:#e9f3e9;background:#142e2b}
+    body{margin:0;padding:22px;display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+    main{width:min(560px,100%)}h1{margin:0 0 8px;font-size:25px}p{color:#bbcec1}
+    button{background:#ffe5a1;color:#27483c;border:0;border-radius:10px;padding:12px 20px;font:700 15px system-ui;cursor:pointer}
+    button:disabled{opacity:.5;cursor:wait}iframe{width:390px;height:780px;flex:none;border:1px solid #567568;border-radius:12px;background:#142e2b}
+    #testStatus{font-weight:700;margin-top:20px}#log{padding-left:22px;overflow-wrap:anywhere}#log li{margin:8px 0}.pass{color:#b5e8ab}.fail{color:#ffb5a7}.info{color:#e4d2a1}
+    code{font-size:12px}small{color:#a2b9aa}@media(max-width:450px){body{padding:12px}iframe{max-width:100%;height:780px}}
+  </style>
+</head>
+<body data-status="idle">
+  <main>
+    <h1>Browser integration checks</h1>
+    <p>Tests controls, upgrades, music, saved progress, and sieges 1, 3, and 10 in a 390 × 780 iframe. Allow about three minutes.</p>
+    <button id="runChecks">Run checks</button>
+    <div id="testStatus" role="status">Ready.</div>
+    <ol id="log" aria-live="polite"></ol>
+    <small>Your existing game save is restored when the checks finish, including after a failure. Keep this page visible while it runs.</small>
+  </main>
+  <iframe id="gameFrame" src="../index.html" title="Game under test" width="390" height="780"></iframe>
+  <script type="module">
+    const frame=document.getElementById('gameFrame');
+    const output=document.getElementById('log');
+    const status=document.getElementById('testStatus');
+    const runButton=document.getElementById('runChecks');
+    const SAVE_KEY='peek-a-keep-save-v1';
+    const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    const doc=()=>frame.contentDocument;
+    const win=()=>frame.contentWindow;
+    const el=id=>doc().getElementById(id);
+    const visible=node=>Boolean(node&&!node.hidden&&node.getClientRects().length);
+    const log=(message,type='pass')=>{
+      const item=document.createElement('li');item.className=type;
+      item.textContent=`${type==='pass'?'PASS':type==='fail'?'FAIL':'INFO'} · ${message}`;
+      output.appendChild(item);
+    };
+    const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+    async function until(check,message,timeout=3500){
+      const end=performance.now()+timeout;
+      while(performance.now()<end){if(check())return;await sleep(25);}
+      throw new Error(message);
+    }
+    function keyboard(type,code){
+      const keys={Space:' ',ArrowDown:'ArrowDown',Escape:'Escape',KeyP:'p'};
+      win().dispatchEvent(new (win().KeyboardEvent)(type,{code,key:keys[code]||code,bubbles:true,cancelable:true,repeat:false}));
+    }
+    function pointer(type,id=71){
+      el('duckButton').dispatchEvent(new (win().PointerEvent)(type,{
+        bubbles:true,cancelable:true,pointerId:id,pointerType:'touch',isPrimary:true,
+        button:0,buttons:type==='pointerdown'?1:0,clientX:190,clientY:690,
+      }));
+    }
+    function click(selector){
+      const button=doc().querySelector(selector);
+      assert(button&&!button.disabled,`Expected an enabled control: ${selector}`);
+      button.click();
+    }
+    function volume(id,value){
+      el(id).value=String(value);
+      el(id).dispatchEvent(new (win().Event)('input',{bubbles:true}));
+    }
+    function hudSnapshot(){
+      return [el('score').textContent,el('hearts').dataset.value,el('waveLabel').textContent,el('waveProgress').style.width].join('|');
+    }
+    async function loadGame(){
+      const loaded=new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{frame.removeEventListener('load',onload);reject(new Error('Game iframe did not load'));},10000);
+        function onload(){clearTimeout(timer);resolve();}
+        frame.addEventListener('load',onload,{once:true});
+      });
+      frame.src=`../index.html?browser-check=${Date.now()}`;
+      await loaded;
+      await until(()=>doc().querySelector('[data-action="play"]')||visible(el('bootError')),'Game title did not appear',10000);
+      assert(!visible(el('bootError')),`Game could not initialize: ${el('errorText')?.textContent}`);
+    }
+    async function expectHeld(value){
+      await until(()=>el('duckButton').getAttribute('aria-pressed')===String(value),`Duck control did not become ${value?'held':'released'}`);
+    }
+    async function playSiegeUsingHints(siege=1){
+      let pendingDuckAt=0,holding=false,perfectSeen=false;
+      const end=performance.now()+90000;
+      while(performance.now()<end){
+        const menu=el('overlay');
+        if(visible(menu)&&menu.querySelector('.result-stats')){
+          keyboard('keyup','Space');
+          assert(menu.textContent.includes(siege===10?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
+          const perfectCount=Number(menu.querySelectorAll('.result-stats strong')[1]?.textContent);
+          assert(perfectCount>0||perfectSeen,'No perfect duck was recorded');
+          log(`Real input timing won siege ${siege} with ${perfectCount} perfect ducks`);
+          return;
+        }
+        const hint=el('combatHint').textContent;
+        if(el('toast').textContent.includes('Perfect duck!'))perfectSeen=true;
+        if(!holding&&hint.includes('INCOMING')&&!pendingDuckAt)pendingDuckAt=performance.now()+170;
+        if(pendingDuckAt&&performance.now()>=pendingDuckAt){
+          keyboard('keydown','Space');holding=true;pendingDuckAt=0;
+        }
+        if(holding&&hint.includes('ALL CLEAR')){
+          keyboard('keyup','Space');holding=false;
+        }
+        await sleep(20);
+      }
+      keyboard('keyup','Space');
+      throw new Error(`Timed out waiting 90 seconds for siege ${siege} to finish`);
+    }
+    runButton.addEventListener('click',async()=>{
+      runButton.disabled=true;output.replaceChildren();document.body.dataset.status='running';
+      delete document.body.dataset.result;status.textContent='Running checks…';
+      let previousSave=null,haveSnapshot=false,failure=null;
+      try{
+        previousSave=localStorage.getItem(SAVE_KEY);haveSnapshot=true;
+        localStorage.removeItem(SAVE_KEY);
+        await loadGame();
+        log('Fresh game initialized in a visible mobile iframe');
+        assert(!doc().querySelector('[data-action="workshop"]'),'Workshop unlocked before siege 3');
+        assert(visible(el('soundButton')),'Sound control is missing from the title');
+        await until(()=>el('backgroundMusic').readyState>=2,'Bundled MP3 did not decode',10000);
+        assert(el('backgroundMusic').loop&&el('backgroundMusic').duration>30,'Background track is not a complete looping song');
+        assert(el('backgroundMusic').paused,'Music autoplayed before an interaction');
+        click('#soundButton');
+        assert(el('backgroundMusic').muted,'Mute did not reach the music player');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).muted,'Mute setting was not saved');
+        click('#soundButton');
+        log('Bundled looping music decodes; title sound control and mute persistence work');
+        click('[data-action="settings"]');
+        assert(el('musicVolume').value==='8'&&el('sfxVolume').value==='80','Fresh audio defaults are incorrect');
+        volume('musicVolume',17);volume('sfxVolume',42);
+        let preferences=JSON.parse(localStorage.getItem(SAVE_KEY));
+        assert(preferences.musicVolume===.17&&preferences.sfxVolume===.42,'Independent sliders did not persist');
+        assert(el('musicVolumeValue').textContent==='17%'&&el('sfxVolumeValue').textContent==='42%','Slider readouts did not update');
+        click('[data-action="preview-cannon"]');
+        click('[data-action="settings-back"]');
+        await loadGame();click('[data-action="settings"]');
+        assert(el('musicVolume').value==='17'&&el('sfxVolume').value==='42','Volume choices did not survive reload');
+        volume('musicVolume',0);
+        assert(el('backgroundMusic').paused,'Music at zero volume did not stop');
+        assert(el('sfxVolume').value==='42','Music slider changed the effects volume');
+        click('[data-action="audio-defaults"]');
+        assert(el('musicVolume').value==='8'&&el('sfxVolume').value==='80','Reset volumes did not restore quiet defaults');
+        click('[data-action="settings-back"]');
+        log('Settings has independent saved sliders, accurate readouts, silent music, reset, and a cannon preview');
+        click('[data-action="play"]');
+        await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Start button did not enter gameplay');
+        assert(el('levelNumber').textContent.includes('01'),'Fresh game did not start siege 1');
+        log('Start enters siege 1');
+
+        keyboard('keydown','Space');await expectHeld(true);
+        keyboard('keyup','Space');await expectHeld(false);
+        log('Space holds and releases the castle');
+        pointer('pointerdown');await expectHeld(true);
+        pointer('pointercancel');await expectHeld(false);
+        log('Touch pointer cancellation releases the castle');
+
+        keyboard('keydown','Space');keyboard('keydown','ArrowDown');pointer('pointerdown');
+        await expectHeld(true);keyboard('keyup','Space');await sleep(45);
+        assert(el('duckButton').getAttribute('aria-pressed')==='true','Releasing one key incorrectly cancelled another hold');
+        pointer('pointercancel');await sleep(45);
+        assert(el('duckButton').getAttribute('aria-pressed')==='true','Cancelling touch incorrectly cancelled the held ArrowDown key');
+        keyboard('keyup','ArrowDown');await expectHeld(false);
+        log('Simultaneous keyboard and pointer holds release independently');
+
+        keyboard('keydown','KeyP');keyboard('keyup','KeyP');
+        await until(()=>Boolean(doc().querySelector('[data-action="resume"]')),'P did not open the pause menu');
+        const frozenHUD=hudSnapshot();await sleep(1450);
+        assert(hudSnapshot()===frozenHUD,'Gameplay HUD changed while paused');
+        click('[data-action="settings"]');volume('sfxVolume',25);await sleep(250);
+        assert(hudSnapshot()===frozenHUD,'Opening settings advanced the paused siege');
+        assert(el('backgroundMusic').paused,'Paused settings resumed background music');
+        click('[data-action="settings-back"]');
+        assert(doc().querySelector('[data-action="resume"]'),'Settings did not return to the paused siege');
+        log('Pause settings keep the siege frozen and music paused');
+        click('[data-action="guide"]');
+        assert(doc().querySelectorAll('.enemy-entry').length===6,'Enemy guide did not show all six types');
+        assert(doc().querySelector('.guide-note').textContent.includes('2-damage'),'Enemy guide did not explain charged damage');
+        click('[data-action="guide-back"]');
+        assert(doc().querySelector('[data-action="resume"]'),'Guide did not return to the paused siege');
+        assert(hudSnapshot()===frozenHUD,'Opening the guide advanced the paused siege');
+        log('Enemy guide explains six types and damage; returning preserves the paused siege');
+        click('[data-action="resume"]');
+        await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Resume did not return to gameplay');
+        log('Pause freezes the HUD; resume returns to gameplay');
+
+        click('#pauseButton');click('[data-action="restart"]');
+        await until(()=>!visible(el('overlay')),'Restart did not close the menu');
+        assert(el('score').textContent==='0'&&el('hearts').dataset.value==='3','Restart did not reset score and hearts');
+        assert(el('waveLabel').textContent.startsWith('0 /'),'Restart did not reset the defeated count');
+        log('Restart restores the initial siege state');
+        log('Playing a full siege through visible INCOMING / ALL CLEAR hints…','info');
+        await playSiegeUsingHints();
+
+        click('[data-action="levels"]');
+        assert(!doc().querySelector('[data-level="2"]').disabled,'Winning siege 1 did not unlock siege 2');
+        assert(doc().querySelector('[data-level="3"]').disabled,'Winning siege 1 unexpectedly unlocked siege 3');
+        log('Victory unlocks siege 2, while siege 3 stays locked');
+        await loadGame();click('[data-action="levels"]');
+        assert(!doc().querySelector('[data-level="2"]').disabled,'Siege 2 unlock was lost on reload');
+        log('Unlocked siege persists after reloading the actual game');
+
+        // A deterministic starting point immediately before the first milestone.
+        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:3,completed:2,best:{1:123},muted:true}));
+        await loadGame();click('[data-action="play"]');
+        log('Playing siege 3 to verify the actual upgrade milestone…','info');
+        await playSiegeUsingHints(3);
+        click('[data-action="next"]');
+        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Milestone did not offer three upgrades');
+        click('[data-upgrade="gate"]');
+        await until(()=>el('levelNumber').textContent.includes('04'),'Upgrade choice did not begin siege 4');
+        assert(el('upgradeStatus').textContent.includes('BLOCK READY'),'Reinforced gate was not fitted to siege 4');
+        click('#pauseButton');
+        assert(doc().querySelector('.pause-upgrade').textContent.includes('Reinforced gate'),'Pause menu did not explain the active upgrade');
+        assert(el('backgroundMusic').paused,'Music continued while the siege was paused');
+        log('Winning siege 3 opens the workshop; a choice starts siege 4 with a fresh gate block');
+
+        await loadGame();click('[data-action="workshop"]');
+        assert(doc().querySelector('[data-upgrade="gate"]').getAttribute('aria-pressed')==='true','Chosen upgrade did not survive reload');
+        click('[data-upgrade="archers"]');
+        const changedSave=JSON.parse(localStorage.getItem(SAVE_KEY));
+        assert(changedSave.upgrade==='archers'&&changedSave.unlocked===4&&changedSave.best[1]===123,'Changing upgrade damaged the existing save');
+        click('[data-action="play"]');
+        assert(el('upgradeStatus').textContent.includes('Twin archers'),'Swapped upgrade did not replace the old one');
+        assert(!el('upgradeStatus').textContent.includes('gate'),'Upgrades stacked unexpectedly');
+        click('#pauseButton');click('[data-action="title"]');click('[data-action="levels"]');click('[data-level="1"]');
+        assert(el('upgradeStatus').hidden,'Upgrade affected the introductory sieges');
+        log('Workshop swaps and reloads preserve progress; early siege replays keep the original rules');
+
+        // Test-only progress on the isolated 127.0.0.1 origin, restored in finally.
+        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:10,completed:9,best:{},muted:true}));
+        await loadGame();click('[data-action="play"]');
+        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Existing completed saves did not receive an upgrade choice');
+        click('[data-upgrade="counterweight"]');
+        await until(()=>el('levelNumber').textContent.includes('10'),'Final siege did not start');
+        log('Playing the mixed final formation through the real controls…','info');
+        await playSiegeUsingHints(10);
+        click('[data-action="levels"]');
+        assert(doc().querySelectorAll('.level-choice:not(:disabled)').length===10,'Final victory did not retain all unlocked sieges');
+        log('Final formation remains completable and campaign completion is saved');
+      }catch(error){
+        failure=error;log(error?.message||String(error),'fail');
+      }finally{
+        try{
+          if(haveSnapshot){
+            if(previousSave===null)localStorage.removeItem(SAVE_KEY);else localStorage.setItem(SAVE_KEY,previousSave);
+            assert(localStorage.getItem(SAVE_KEY)===previousSave,'Original save could not be restored');
+            // Reloading also stops test inputs, pending result timers, and the test round.
+            await loadGame();log('Original local game save restored exactly');
+          }
+        }catch(error){failure ||=error;log(`Cleanup: ${error?.message||error}`,'fail');}
+        document.body.dataset.status='done';document.body.dataset.result=failure?'fail':'pass';
+        output.dataset.status='done';status.textContent=failure?'Checks finished with a failure.':'All browser checks passed.';
+        status.className=failure?'fail':'pass';runButton.disabled=false;
+      }
+    });
+  </script>
+</body>
+</html>

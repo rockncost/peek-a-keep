@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#142e2b">
+  <meta name="description" content="A little castle with a big survival instinct. Hold to hide, release to fire in this one-thumb 3D game.">
+  <title>Peek-a-Keep · A castle that ducks</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b4943'/%3E%3Cpath d='M14 18h9v9h5V14h9v13h5v-9h9v34H14z' fill='%23ffdf8b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="game" aria-label="Peek-a-Keep game">
+    <div id="scene" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <button id="soundButton" class="icon-button global-sound" aria-label="Mute sound" title="Toggle music and sound"></button>
+    <header id="hud" class="hud">
+      <div class="topline">
+        <div class="level-info"><span class="eyebrow" id="levelNumber">SIEGE 01 / 10</span><strong id="levelName">The first knock</strong></div>
+        <div class="icon-buttons">
+          <button id="pauseButton" class="icon-button" aria-label="Pause game" title="Pause (P)"><svg viewBox="0 0 24 24"><path d="M8 6v12M16 6v12"/></svg></button>
+          <span class="sound-space" aria-hidden="true"></span>
+        </div>
+      </div>
+      <div class="status-row"><div id="hearts" class="hearts" aria-label="3 hearts"></div><span class="score"><span class="score-star">✦</span> <span id="score">0</span></span></div>
+      <div class="wave-row"><span id="waveLabel">0 / 8 defeated</span><div class="wave-track"><div id="waveProgress"></div></div></div>
+      <div id="upgradeStatus" class="upgrade-status" hidden></div>
+    </header>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="combatHint" class="combat-hint"></div>
+    <footer id="controls" class="controls">
+      <div class="castle-status"><span id="stateDot"></span><span id="castleStatus">ARCHERS READY</span><span id="powerLabel" hidden>✦ POWER SHOT</span></div>
+      <button id="duckButton" class="duck-button" aria-label="Hold to hide. Release to fire.">
+        <svg class="duck-icon" viewBox="0 0 32 32"><path d="M7 6v6h6V6h6v6h6V6M7 12v9h18v-9M16 24v5m-4-4 4 4 4-4"/></svg>
+        <span><strong id="controlTitle">Hold to hide</strong><small id="controlSubtitle">Release to fire</small></span>
+        <span class="keycap">SPACE</span>
+      </button>
+      <div class="control-footnote">A brave little castle. A very good hiding place.</div>
+    </footer>
+    <div id="hitFlash" class="hit-flash" aria-hidden="true"></div>
+    <section id="overlay" class="overlay" aria-label="Game menu"></section>
+    <div id="bootError" class="boot-error" hidden><h1>The keep needs a little help</h1><p id="errorText">This game needs WebGL in a modern browser.</p><button onclick="location.reload()">Try again</button></div>
+    <noscript><div class="boot-error">Enable JavaScript to play Peek-a-Keep.</div></noscript>
+  </main>
+  <div class="desktop-caption"><span>PEEK-A-KEEP</span><span>HOLD. HIDE. HELLO AGAIN.</span></div>
+  <audio id="backgroundMusic" src="./assets/Hammer_and_Gate.mp3" loop preload="metadata"></audio>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
