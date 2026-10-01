@@ -16,6 +16,12 @@ Designed for portrait phones, with mouse and keyboard support on desktop. A mode
 
 Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for **2 damage**, shown by a larger cyan projectile and cyan damage number. Every full-health enemy needs multiple hits; an injured enemy can still be finished by one arrow. Early ducks are safe, but do not earn the bonus and consume valuable firing time. Three hits or breaches end a siege; victory restores your hearts for the next one. Enemies signal a shot with a glowing fuse and ground ring. Twin cannons fire twice; volley carts fire three spaced shots. Use the **Enemy guide** on the title or pause menu for their strengths.
 
+## Version 1.3.1: volume display
+
+Both sliders now show **100%** at the existing default loudness. This changes the UI scale only: music still uses the same 0.08 playback gain and SFX the same 0.8 master gain. A 50% slider setting means half of that channel's established level. Saved playback levels are preserved, including silence and older louder choices; the latter retain a stable custom UI ceiling. Reset restores the established mix and shows 100% for both.
+
+See [EXPANSION_PLAN.md](EXPANSION_PLAN.md) for proposed new siege mechanics, a first boss, branching campaign routes, terrain, and replay modes. These are proposals, not implemented features.
+
 ## Version 1.3: quiet music and powerful cannons
 
 - Music defaults to **8%**, down from 34%. Sound effects default to **80%**. Existing saves without volume settings receive these defaults; explicit choices, including 0%, are preserved.

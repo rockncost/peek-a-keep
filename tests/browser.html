@@ -129,10 +129,11 @@
         click('#soundButton');
         log('Bundled looping music decodes; title sound control and mute persistence work');
         click('[data-action="settings"]');
-        assert(el('musicVolume').value==='8'&&el('sfxVolume').value==='80','Fresh audio defaults are incorrect');
+        assert(el('musicVolume').value==='100'&&el('sfxVolume').value==='100','Fresh audio defaults are incorrect');
+        assert(el('backgroundMusic').volume===.08,'Showing 100% changed actual music loudness');
         volume('musicVolume',17);volume('sfxVolume',42);
         let preferences=JSON.parse(localStorage.getItem(SAVE_KEY));
-        assert(preferences.musicVolume===.17&&preferences.sfxVolume===.42,'Independent sliders did not persist');
+        assert(Math.abs(preferences.musicVolume-.0136)<1e-12&&Math.abs(preferences.sfxVolume-.336)<1e-12,'Independent sliders did not persist');
         assert(el('musicVolumeValue').textContent==='17%'&&el('sfxVolumeValue').textContent==='42%','Slider readouts did not update');
         click('[data-action="preview-cannon"]');
         click('[data-action="settings-back"]');
@@ -142,9 +143,11 @@
         assert(el('backgroundMusic').paused,'Music at zero volume did not stop');
         assert(el('sfxVolume').value==='42','Music slider changed the effects volume');
         click('[data-action="audio-defaults"]');
-        assert(el('musicVolume').value==='8'&&el('sfxVolume').value==='80','Reset volumes did not restore quiet defaults');
+        assert(el('musicVolume').value==='100'&&el('sfxVolume').value==='100','Reset volumes did not restore quiet defaults');
+        assert(el('backgroundMusic').volume===.08,'Reset at 100% changed the existing music mix');
         click('[data-action="settings-back"]');
         log('Settings has independent saved sliders, accurate readouts, silent music, reset, and a cannon preview');
+        if(new URLSearchParams(location.search).has('audio-only'))return;
         click('[data-action="play"]');
         await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Start button did not enter gameplay');
         assert(el('levelNumber').textContent.includes('01'),'Fresh game did not start siege 1');

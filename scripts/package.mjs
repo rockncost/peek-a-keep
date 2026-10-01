@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 // Fixed timestamps and sorted paths produce identical archives from identical files.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const destination = join(root, 'dist', 'peek-a-keep-itch.zip');
-const paths = ['index.html', 'styles.css', 'README.md'];
+const paths = ['index.html', 'styles.css', 'README.md', 'EXPANSION_PLAN.md'];
 
 async function collect(folder) {
   const entries = await readdir(join(root, folder), { withFileTypes: true });

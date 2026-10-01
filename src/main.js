@@ -1,13 +1,14 @@
 import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, getLevelConfig } from './model.js';
 import { GameScene } from './scene.js';
 import { GameAudio, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME, validVolume } from './audio.js';
+import { volumeCeiling, volumePercent, volumeFromPercent } from './volume-ui.js';
 import { UPGRADES, UPGRADE_UNLOCK_LEVEL, UPGRADE_MILESTONES, validUpgrade } from './upgrades.js';
 
 const $=id=>document.getElementById(id);
 const introductions={1:'Watch the cannonballs!',2:'Reinforced rams need sustained fire.',3:'Twin cannons fire twice. Wait for both.',4:'Ironclads have thick armor.',6:'Volley carts fire three spaced shots.',8:'Ballistas fire fast bolts. Watch the wind-up.'};
 const SAVE_KEY='peek-a-keep-save-v1';
-let saved={unlocked:1,completed:0,best:{},muted:false,upgrade:null,musicVolume:DEFAULT_MUSIC_VOLUME,sfxVolume:DEFAULT_SFX_VOLUME};
-try{const data=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(data&&typeof data==='object')saved={unlocked:Math.min(10,Math.max(1,Math.floor(Number(data.unlocked)||1))),completed:Math.min(10,Math.max(0,Math.floor(Number(data.completed)||0))),best:data.best&&typeof data.best==='object'?data.best:{},muted:!!data.muted,upgrade:validUpgrade(data.upgrade),musicVolume:validVolume(data.musicVolume,DEFAULT_MUSIC_VOLUME),sfxVolume:validVolume(data.sfxVolume,DEFAULT_SFX_VOLUME)};}catch{}
+let saved={unlocked:1,completed:0,best:{},muted:false,upgrade:null,musicVolume:DEFAULT_MUSIC_VOLUME,sfxVolume:DEFAULT_SFX_VOLUME,musicVolumeCeiling:DEFAULT_MUSIC_VOLUME,sfxVolumeCeiling:DEFAULT_SFX_VOLUME};
+try{const data=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(data&&typeof data==='object')saved={unlocked:Math.min(10,Math.max(1,Math.floor(Number(data.unlocked)||1))),completed:Math.min(10,Math.max(0,Math.floor(Number(data.completed)||0))),best:data.best&&typeof data.best==='object'?data.best:{},muted:!!data.muted,upgrade:validUpgrade(data.upgrade),musicVolume:validVolume(data.musicVolume,DEFAULT_MUSIC_VOLUME),sfxVolume:validVolume(data.sfxVolume,DEFAULT_SFX_VOLUME),musicVolumeCeiling:volumeCeiling(data.musicVolume,data.musicVolumeCeiling,DEFAULT_MUSIC_VOLUME),sfxVolumeCeiling:volumeCeiling(data.sfxVolume,data.sfxVolumeCeiling,DEFAULT_SFX_VOLUME)};}catch{}
 const save=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(saved));}catch{}};
 const audio=new GameAudio();audio.musicVolume=saved.musicVolume;audio.sfxVolume=saved.sfxVolume;audio.muted=saved.muted;
 let scene,model=new GameModel(1),mode='title',lastTime=0,toastTimer=0,flashTimer=0,resultTimer=-1,guideReturn='title';
@@ -50,13 +51,13 @@ function pause(){
 function resume(){if(mode!=='paused')return;mode='playing';$('overlay').hidden=true;$('controls').hidden=false;$('pauseButton').disabled=false;audio.setActive(true);audio.unlock();}
 function settings(){
   settingsReturn=mode==='paused'?'paused':'title';releaseAll();mode='settings';
-  setMenu(`<div class="panel settings-panel"><span class="eyebrow">MAKE YOURSELF AT HOME</span><h1>Sound your way.</h1><p>A quiet tune. A mighty cannon.<br>Set the balance that feels right.</p><div class="volume-setting"><div><label for="musicVolume">Music</label><output id="musicVolumeValue" for="musicVolume">${Math.round(audio.musicVolume*100)}%</output></div><input id="musicVolume" class="audio-slider" type="range" min="0" max="100" value="${Math.round(audio.musicVolume*100)}" aria-describedby="musicHelp"><small id="musicHelp">Hammer and Gate · looping background track</small></div><div class="volume-setting"><div><label for="sfxVolume">Sound effects</label><output id="sfxVolumeValue" for="sfxVolume">${Math.round(audio.sfxVolume*100)}%</output></div><input id="sfxVolume" class="audio-slider" type="range" min="0" max="100" value="${Math.round(audio.sfxVolume*100)}" aria-describedby="sfxHelp"><small id="sfxHelp">Cannons, arrows, ducks, and victory sounds</small></div><button class="secondary-button preview-sfx" data-action="preview-cannon">Test cannon · Pphhh-BOOM</button><p id="muteNote" class="settings-note"></p><div class="settings-actions"><button id="settingsMute" class="secondary-button" data-action="mute"></button><button class="secondary-button" data-action="audio-defaults">Reset volumes</button></div><button class="primary-button" data-action="settings-back">${settingsReturn==='paused'?'Back to the pause menu':'Back to the keep'}</button></div>`);
+  setMenu(`<div class="panel settings-panel"><span class="eyebrow">MAKE YOURSELF AT HOME</span><h1>Sound your way.</h1><p>A quiet tune. A mighty cannon.<br>Set the balance that feels right.</p><div class="volume-setting"><div><label for="musicVolume">Music</label><output id="musicVolumeValue" for="musicVolume">${volumePercent(audio.musicVolume,saved.musicVolumeCeiling)}%</output></div><input id="musicVolume" class="audio-slider" type="range" min="0" max="100" value="${volumePercent(audio.musicVolume,saved.musicVolumeCeiling)}" aria-describedby="musicHelp"><small id="musicHelp">Hammer and Gate · looping background track</small></div><div class="volume-setting"><div><label for="sfxVolume">Sound effects</label><output id="sfxVolumeValue" for="sfxVolume">${volumePercent(audio.sfxVolume,saved.sfxVolumeCeiling)}%</output></div><input id="sfxVolume" class="audio-slider" type="range" min="0" max="100" value="${volumePercent(audio.sfxVolume,saved.sfxVolumeCeiling)}" aria-describedby="sfxHelp"><small id="sfxHelp">Cannons, arrows, ducks, and victory sounds</small></div><button class="secondary-button preview-sfx" data-action="preview-cannon">Test cannon · Pphhh-BOOM</button><p id="muteNote" class="settings-note"></p><div class="settings-actions"><button id="settingsMute" class="secondary-button" data-action="mute"></button><button class="secondary-button" data-action="audio-defaults">Reset volumes</button></div><button class="primary-button" data-action="settings-back">${settingsReturn==='paused'?'Back to the pause menu':'Back to the keep'}</button></div>`);
   updateSound();
 }
 function closeSettings(){if(settingsReturn==='paused'){mode='playing';pause();}else title();}
 function setVolume(channel,value){
   audio[channel]=value;saved[channel]=audio[channel];save();
-  if($(channel)){$(channel).value=Math.round(audio[channel]*100);$(channel+'Value').textContent=`${Math.round(audio[channel]*100)}%`;}
+  if($(channel)){$(channel).value=volumePercent(audio[channel],saved[channel+'Ceiling']);$(channel+'Value').textContent=`${volumePercent(audio[channel],saved[channel+'Ceiling'])}%`;}
 }
 function workshop(nextLevel=null){
   releaseAll();workshopLevel=nextLevel;mode='workshop';$('hud').hidden=true;
@@ -128,13 +129,13 @@ $('overlay').addEventListener('click',event=>{
   if(action==='settings-back')closeSettings();
   if(action==='mute')toggleSound();
   if(action==='preview-cannon')audio.play('enemyShot',{enemyType:'cannon'});
-  if(action==='audio-defaults'){setVolume('musicVolume',DEFAULT_MUSIC_VOLUME);setVolume('sfxVolume',DEFAULT_SFX_VOLUME);}
+  if(action==='audio-defaults'){saved.musicVolumeCeiling=DEFAULT_MUSIC_VOLUME;saved.sfxVolumeCeiling=DEFAULT_SFX_VOLUME;setVolume('musicVolume',DEFAULT_MUSIC_VOLUME);setVolume('sfxVolume',DEFAULT_SFX_VOLUME);}
   if(action==='guide-back'){if(guideReturn==='paused'){mode='playing';pause();}else title();}
 });
 $('pauseButton').addEventListener('click',pause);
 $('soundButton').addEventListener('click',toggleSound);
 $('overlay').addEventListener('input',event=>{
-  if(event.target.id==='musicVolume'||event.target.id==='sfxVolume'){setVolume(event.target.id,Number(event.target.value)/100);audio.unlock();}
+  if(event.target.id==='musicVolume'||event.target.id==='sfxVolume'){setVolume(event.target.id,volumeFromPercent(event.target.value,saved[event.target.id+'Ceiling']));audio.unlock();}
 });
 $('game').addEventListener('pointerdown',event=>{
   if(mode!=='playing'||event.button!==0||event.target.closest('button:not(#duckButton)'))return;
