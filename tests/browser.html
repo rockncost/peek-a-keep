@@ -17,7 +17,7 @@
 <body data-status="idle">
   <main>
     <h1>Browser integration checks</h1>
-    <p>Tests the single campaign, hidden tester access, restrictions, wave recovery, save reset and audio in a portrait iframe. Allow about three minutes.</p>
+    <p>Tests star rewards, purchases, blueprints, campaign defenses, tester access, reset and audio in a portrait iframe. Allow about four minutes.</p>
     <button id="runChecks">Run checks</button>
     <div id="testStatus" role="status">Ready.</div>
     <ol id="log" aria-live="polite"></ol>
@@ -93,7 +93,7 @@
           assert(menu.textContent.includes(siege===19?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
           const perfectCount=Number(menu.querySelectorAll('.result-stats strong')[1]?.textContent);
           assert(perfectCount>0||perfectSeen,'No perfect duck was recorded');
-          if(siege===13)assert(bossSeen,'Fortress boss bar did not appear');
+          if(siege===13||siege===19)assert(bossSeen,'Fortress boss bar did not appear');
           log(`Real input timing won siege ${siege} with ${perfectCount} perfect ducks`);
           return;
         }
@@ -150,6 +150,33 @@
         click('[data-action="settings-back"]');
         log('Settings has independent saved sliders, accurate readouts, silent music, reset, and a cannon preview');
         if(new URLSearchParams(location.search).has('audio-only'))return;
+        assert(!doc().querySelector('[data-action="workshop"]'),'A fresh keep exposes upgrades before the first victory');
+        click('[data-action="play"]');assert(el('upgradeStatus').hidden,'First siege has free upgrades');
+        log('Playing first siege to check actual star earnings and first purchase…','info');
+        await playSiegeUsingHints(1);
+        const firstSave=JSON.parse(localStorage.getItem(SAVE_KEY));
+        assert(firstSave.stars>=50&&firstSave.completed===1,'First victory did not fund a small upgrade');
+        click('[data-action="earn-upgrades"]');
+        assert(doc().querySelectorAll('[data-upgrade]').length===9,'Workshop is missing upgrade paths');
+        assert(doc().querySelector('[data-upgrade="ballista"]').disabled,'Blueprint prerequisite is missing');
+        click('[data-upgrade="archers"]');
+        let purchase=JSON.parse(localStorage.getItem(SAVE_KEY));
+        assert(purchase.stars===firstSave.stars-50&&purchase.upgrades.archers===1,'Purchase did not spend 50 stars for one rank');
+        assert(doc().querySelector('[data-upgrade="fletching"]').disabled,'Workshop allows spending stars that are not available');
+        click('[data-action="workshop-continue"]');
+        assert(el('levelNumber').textContent.includes('02')&&el('upgradeStatus').textContent.includes('1 improvement'),'Purchase did not carry into siege two');
+        await loadGame();click('[data-action="workshop"]');
+        assert(doc().querySelector('[data-upgrade="archers"]').textContent.includes('1 / 5'),'Paid rank was lost after reload');
+        localStorage.setItem(SAVE_KEY,JSON.stringify({currencyVersion:1,completed:3,stars:100,upgrades:{archers:3,ballista:3},muted:true}));
+        await loadGame();click('[data-action="workshop"]');
+        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('No effect yet'),'Incomplete blueprint UI hides its delayed effect');
+        click('[data-upgrade="ballista"]');
+        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Activates blueprint'),'Last blueprint stage is not explained');
+        click('[data-upgrade="ballista"]');
+        purchase=JSON.parse(localStorage.getItem(SAVE_KEY));assert(purchase.upgrades.ballista===5&&purchase.stars===0,'Blueprint completion has wrong rank or price');
+        assert(doc().querySelector('[data-upgrade="ballista"]').disabled,'Completed blueprint can still be bought');
+        log('Stars, affordable first upgrade, persistence, prerequisites and five-stage blueprint UI work');
+        localStorage.setItem(SAVE_KEY,JSON.stringify({muted:true}));await loadGame();
         assert(!doc().querySelector('[data-action="extras"]'),'Extra modes still appear on the title');
         click('[data-action="levels"]');
         assert(doc().querySelectorAll('.level-choice').length===19,'Campaign does not have 19 sieges');

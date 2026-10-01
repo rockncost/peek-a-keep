@@ -256,9 +256,9 @@ export class GameScene {
     this.mat(PALETTE.blue,true,{side:THREE.DoubleSide}).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);
     const X=(lane,p)=>approachX(lane,p,state.terrain);
     const target=-3.95*(1-state.exposure);this.castle.position.y=target;
-    this.gateBrace.visible=state.upgrade==='gate'&&state.gateShield>0;
-    this.counterweight.visible=state.upgrade==='counterweight';
-    this.archers.forEach(a=>a.scale.setScalar(state.upgrade==='archers'?1.15:1));
+    this.gateBrace.visible=state.upgrades?.gate===5&&state.gateShield>0;
+    this.counterweight.visible=state.upgrades?.counterweight>0;
+    this.archers.forEach(a=>a.scale.setScalar(1+.02*(state.upgrades?.archers||0)));
     this.castle.rotation.z=state.exposure>.02&&state.exposure<.97?Math.sin(this.clock*45)*.012:0;
     this.aura.material.opacity=state.power?.65+Math.sin(this.clock*6)*.2:0;this.aura.scale.setScalar(1+Math.sin(this.clock*3)*.025);
     this.flags.forEach((f,i)=>{f.rotation.y=Math.sin(this.clock*4+i)*.13;f.rotation.x=Math.sin(this.clock*3+i)*.035;});

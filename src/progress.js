@@ -1,6 +1,6 @@
 import { TOTAL_LEVELS } from './model.js';
 import { CASTLE_COLORS, validRoute } from './content.js';
-import { validUpgrade } from './upgrades.js';
+import { upgradeRanks, siegeReward } from './upgrades.js';
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME, validVolume } from './audio.js';
 import { volumeCeiling } from './volume-ui.js';
 
@@ -12,7 +12,10 @@ export function restoreProgress(value) {
   const colors=['blue',...Object.keys(CASTLE_COLORS).filter(id=>id!=='blue'&&Array.isArray(data.colors)&&data.colors.includes(id))];
   return {
     unlocked:Math.max(integer(data.unlocked,1,TOTAL_LEVELS),Math.min(TOTAL_LEVELS,completed+1)),completed,
-    best:scores(data.best),muted:!!data.muted,upgrade:validUpgrade(data.upgrade),
+    best:scores(data.best),muted:!!data.muted,
+    currencyVersion:1,stars:data.currencyVersion===1?integer(data.stars,0,1e9):completed*50,
+    upgrades:upgradeRanks(data.currencyVersion===1?data.upgrades:null),
+    settledRuns:Array.isArray(data.settledRuns)?data.settledRuns.filter(id=>typeof id==='string').slice(-32):[],
     testAccess:data.testAccess===true,
     musicVolume:validVolume(data.musicVolume,DEFAULT_MUSIC_VOLUME),sfxVolume:validVolume(data.sfxVolume,DEFAULT_SFX_VOLUME),
     musicVolumeCeiling:volumeCeiling(data.musicVolume,data.musicVolumeCeiling,DEFAULT_MUSIC_VOLUME),
@@ -34,6 +37,9 @@ export function awardColors(saved,state) {
 }
 export function recordResult(saved,state,run) {
   if(run.testing)return [];
+  if(run.id&&saved.settledRuns.includes(run.id))return [];
+  saved.stars=Math.min(1e9,saved.stars+siegeReward(state));
+  if(run.id)saved.settledRuns=[...saved.settledRuns,run.id].slice(-32);
   const won=state.phase==='won';
   if(run.kind==='campaign'&&won){saved.unlocked=Math.max(saved.unlocked,Math.min(TOTAL_LEVELS,state.level+1));saved.completed=Math.max(saved.completed,state.level);saved.best[state.level]=Math.max(saved.best[state.level]||0,state.score);}
   return awardColors(saved,state);

@@ -1,4 +1,4 @@
-import { UPGRADE_UNLOCK_LEVEL, validUpgrade } from './upgrades.js';
+import { upgradeRanks, upgradeStats, starsForEnemy } from './upgrades.js';
 import { routeConfig, seededRandom } from './content.js';
 
 /** Pure, deterministic game rules. All times are seconds and positions are 0–1. */
@@ -66,15 +66,15 @@ export class GameModel {
     this.shotTimer = 0.15;
     this.waveIndex=0;
     this.duckStarted = -Infinity;
-    upgrade = this.config.noUpgrade?null:level >= UPGRADE_UNLOCK_LEVEL || options.mode ? validUpgrade(upgrade) : null;
-    this.riseSpeed = upgrade === 'counterweight' ? 6 : 4;
-    this.fireInterval = upgrade === 'archers' ? 0.55 : 0.68;
+    const ranks=upgradeRanks(level===1||this.config.noUpgrade?null:upgrade);
+    this.stats=upgradeStats(ranks);this.shotsFired=0;
+    this.riseSpeed=this.stats.riseSpeed;this.fireInterval=this.stats.fireInterval;
     this.state = {
-      phase: 'playing', level, time: 0, hearts: clamp(options.hearts??this.config.hearts??3,1,3), score: 0, kills: 0,
+      phase: 'playing', level, time: 0, hearts: clamp(options.hearts??this.config.hearts??3,1,3), score: 0, stars:0, kills: 0,
       total: this.config.total,
       enemies: [], projectiles: [], arrows: [],
       exposure: 1, holding: false, power: false, combo: 0, perfects: 0,
-      progress: 0, spawned: 0, upgrade, gateShield: upgrade === 'gate' ? 1 : 0,
+      progress: 0, spawned: 0, upgrades:ranks, gateShield:this.stats.gate?1:0,
       terrain:this.config.terrain||'plain',mode:options.mode||'campaign',round:options.round||1,
       cosmetic:options.cosmetic||'blue',maxCombo:0,ramKills:0,ramBreaches:0,
     };
@@ -197,11 +197,11 @@ export class GameModel {
   tick(dt) {
     const s = this.state;
     s.time += dt;
-    s.exposure = clamp(s.exposure + (s.holding ? -5 : this.riseSpeed) * dt, 0, 1);
+    s.exposure = clamp(s.exposure + (s.holding ? -this.stats.duckSpeed : this.riseSpeed) * dt, 0, 1);
     this.spawnTimer -= dt;
     const waveBoundary=this.config.waveEnds?.[this.waveIndex];
     const waveWaiting=this.spawned===waveBoundary;
-    if(waveWaiting&&s.enemies.length===0&&s.projectiles.length===0){this.waveIndex++;s.hearts=3;s.gateShield=s.upgrade==='gate'?1:0;this.spawnTimer=2;this.emit('recovery',{wave:this.waveIndex+1});}
+    if(waveWaiting&&s.enemies.length===0&&s.projectiles.length===0){this.waveIndex++;s.hearts=3;s.gateShield=this.stats.gate?1:0;this.spawnTimer=2;this.emit('recovery',{wave:this.waveIndex+1});}
     if (!waveWaiting && this.spawned < s.total && this.spawnTimer <= 0) {
       this.spawnEnemy();
       this.spawnTimer += this.spawnInterval;
@@ -271,8 +271,16 @@ export class GameModel {
       s.power = false;
       s.arrows.push({
         id: this.nextId++, lane: target.lane, progress: 0, targetId: target.id,
-        powered, damage: powered ? 2 : 1, elapsed: 0, duration: 0.35, targetProgress: target.progress,
+        powered, damage: powered ? 2 : 1, elapsed: 0, duration: this.stats.arrowDuration, targetProgress: target.progress,
       });
+      this.shotsFired++;
+      const extraTargets=new Set();
+      if(this.stats.piercing&&this.shotsFired%4===0){
+        const other=byDistance.find(e=>e.id!==target.id&&Math.abs(e.progress-target.progress)<.22&&(e.lane===target.lane||s.terrain==='river'));
+        if(other)extraTargets.add(other);
+      }
+      if(this.stats.scatter&&powered)for(const other of byDistance.filter(e=>e.id!==target.id).slice(0,2))extraTargets.add(other);
+      for(const other of extraTargets)s.arrows.push({id:this.nextId++,lane:other.lane,progress:0,targetId:other.id,powered:false,damage:1,elapsed:0,duration:this.stats.arrowDuration,targetProgress:other.progress});
       this.shotTimer = this.fireInterval;
       this.emit('shot', { targetId: target.id, lane: target.lane, powered, damage: powered ? 2 : 1 });
     }
@@ -298,6 +306,7 @@ export class GameModel {
           const points = ENEMY_TYPES[target.type].points
             + (arrow.powered ? 50 : 0);
           s.score += points;
+          s.stars+=starsForEnemy(ENEMY_TYPES[target.type].points);
           this.emit('kill', {
             enemyId: target.id, lane: target.lane, progress: target.progress,
             enemyType: target.type, powered: arrow.powered, points,
@@ -313,9 +322,9 @@ export class GameModel {
       projectile.progress = clamp(projectile.elapsed / projectile.duration, 0, 1);
       if(projectile.type==='mortar'&&!projectile.whistled&&projectile.duration-projectile.elapsed<.8){projectile.whistled=true;this.emit('mortarWhistle');}
       if (projectile.progress < 1) continue;
-      if (s.exposure < 0.28) {
+      if (s.exposure < this.stats.safeExposure) {
         const sinceDuck = s.time - this.duckStarted;
-        const perfect = s.holding && sinceDuck >= 0.17 && sinceDuck <= 0.60;
+        const perfect = s.holding && sinceDuck >= 0.17 && sinceDuck <= this.stats.perfectWindow;
         if (perfect) {
           s.power = true;
           s.perfects += 1;

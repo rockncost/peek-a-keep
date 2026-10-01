@@ -2,7 +2,7 @@ import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, getLevelConfig } from './model.js
 import { GameScene } from './scene.js';
 import { GameAudio, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME } from './audio.js';
 import { volumePercent, volumeFromPercent } from './volume-ui.js';
-import { UPGRADES, UPGRADE_UNLOCK_LEVEL, UPGRADE_MILESTONES, validUpgrade } from './upgrades.js';
+import { UPGRADES, BRANCHES, UPGRADE_COST, upgradeCount, canBuild, buyUpgrade, siegeReward } from './upgrades.js';
 
 import { ROUTES, CASTLE_COLORS } from './content.js';
 import { restoreProgress, recordResult } from './progress.js';
@@ -20,7 +20,7 @@ let workshopLevel=null;
 let runContext={kind:'campaign',level:1};
 let secretTaps=0,secretTime=0;
 let settingsReturn='title';
-const workshopUnlocked=()=>saved.testAccess||saved.unlocked>=UPGRADE_UNLOCK_LEVEL;
+const workshopUnlocked=()=>saved.completed>=1;
 const heart='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21S2 14.7 2 7.8C2 2.1 9 1 12 6c3-5 10-3.9 10 1.8C22 14.7 12 21 12 21z"/></svg>';
 
 function updateSound(){
@@ -40,15 +40,14 @@ function title(){
   runContext={kind:'campaign',level:1};resultTimer=-1;
   releaseAll();mode='title';model=new GameModel(1);model.state.enemies=[{id:990,type:'cannon',lane:-1,progress:.18,hp:3,maxHp:3,warning:0},{id:991,type:'cannon',lane:1,progress:.02,hp:3,maxHp:3,warning:0}];
   model.state.cosmetic=saved.cosmetic;$('hud').hidden=true;$('toast').classList.remove('visible');
-  setMenu(`<div class="start-heading"><span class="eyebrow">A CASTLE THAT DUCKS</span><h1 class="game-title"><span>PEEK-</span><span>A-KEEP</span></h1><p>A little courage. A lot of ducking.</p></div><div class="start-bottom"><div class="start-instructions"><strong>Hold</strong> to hide underground.<br><strong>Release</strong> to let your archers fire.</div><button class="primary-button" data-action="play">${saved.unlocked>1?'Continue the defense':'Defend the keep'}</button><div class="start-links"><button class="secondary-button" data-action="levels">Choose a siege${saved.completed===TOTAL_LEVELS?' · 19/19':''}</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button></div>${workshopUnlocked()?`<button class="secondary-button workshop-link" data-action="workshop">Castle workshop${saved.upgrade?' · '+UPGRADES[saved.upgrade].name:' · New!'}</button>`:''}<button class="secondary-button" data-action="wardrobe">Castle colors</button></div>`,'start');
+  setMenu(`<div class="start-heading"><span class="eyebrow">A CASTLE THAT DUCKS</span><h1 class="game-title"><span>PEEK-</span><span>A-KEEP</span></h1><p>A little courage. A lot of ducking.</p></div><div class="start-bottom"><div class="start-instructions"><strong>Hold</strong> to hide underground.<br><strong>Release</strong> to let your archers fire.</div><button class="primary-button" data-action="play">${saved.unlocked>1?'Continue the defense':'Defend the keep'}</button><div class="start-links"><button class="secondary-button" data-action="levels">Choose a siege${saved.completed===TOTAL_LEVELS?' · 19/19':''}</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button></div>${workshopUnlocked()?`<button class="secondary-button workshop-link" data-action="workshop">Castle workshop · ✦ ${saved.stars}</button>`:''}<button class="secondary-button" data-action="wardrobe">Castle colors</button></div>`,'start');
 }
 function startLevel(level){
   level=Math.max(1,Math.min(TOTAL_LEVELS,Math.floor(level)));
   if(level>saved.unlocked&&!saved.testAccess)return;
   const config=getLevelConfig(level);
-  if(level>=UPGRADE_UNLOCK_LEVEL&&!config.noUpgrade&&!saved.upgrade&&!saved.testAccess){workshop(level);return;}
-  releaseAll();runContext={kind:'campaign',level,testing:saved.testAccess};audio.setActive(true);audio.unlock();
-  model=new GameModel(level,level*7159,saved.upgrade||(saved.testAccess?'archers':null),{cosmetic:saved.cosmetic});mode='playing';resultTimer=-1;
+  releaseAll();runContext={kind:'campaign',level,testing:saved.testAccess,id:crypto.randomUUID()};audio.setActive(true);audio.unlock();
+  model=new GameModel(level,level*7159,saved.upgrades,{cosmetic:saved.cosmetic});mode='playing';resultTimer=-1;
   $('overlay').hidden=true;$('hud').hidden=false;$('controls').hidden=false;$('pauseButton').disabled=false;
   $('levelNumber').textContent='SIEGE '+String(level).padStart(2,'0')+' / '+TOTAL_LEVELS+(saved.testAccess?' · TEST':'');
   $('levelName').textContent=config.label;
@@ -57,12 +56,12 @@ function startLevel(level){
 }
 function wardrobe(){
   releaseAll();mode='wardrobe';$('hud').hidden=true;
-  setMenu('<div class="panel"><span class="eyebrow">FLY YOUR COLORS</span><h1>A keep of your own.</h1><p>Cosmetic rewards. Earn them in any mode.</p><div class="upgrade-choices">'+Object.entries(CASTLE_COLORS).map(([id,c])=>'<button class="upgrade-choice '+(saved.cosmetic===id?'selected':'')+'" data-color="'+id+'" '+(saved.colors.includes(id)?'':'disabled')+'><span class="color-swatch" style="background:#'+c.color.toString(16).padStart(6,'0')+'"></span><span class="upgrade-copy"><strong>'+c.name+(saved.cosmetic===id?' · FITTED':'')+'</strong><span>'+c.requirement+'</span></span></button>').join('')+'</div><button class="secondary-button" data-action="title">Back to the keep</button></div>');
+  setMenu('<div class="panel"><span class="eyebrow">FLY YOUR COLORS</span><h1>A keep of your own.</h1><p>Cosmetic rewards. Earn them during the campaign.</p><div class="upgrade-choices">'+Object.entries(CASTLE_COLORS).map(([id,c])=>'<button class="upgrade-choice '+(saved.cosmetic===id?'selected':'')+'" data-color="'+id+'" '+(saved.colors.includes(id)?'':'disabled')+'><span class="color-swatch" style="background:#'+c.color.toString(16).padStart(6,'0')+'"></span><span class="upgrade-copy"><strong>'+c.name+(saved.cosmetic===id?' · FITTED':'')+'</strong><span>'+c.requirement+'</span></span></button>').join('')+'</div><button class="secondary-button" data-action="title">Back to the keep</button></div>');
 }
 function restartRun(){startLevel(model.state.level);}
 function pause(){
   if(mode!=='playing')return;releaseAll();mode='paused';
-  setMenu(`<div class="panel pause-panel"><span class="eyebrow">TAKE A BREATHER</span><span class="medal">Ⅱ</span><h1>The siege can wait.</h1><p>Your little kingdom is right where you left it.</p>${model.state.upgrade?`<div class="pause-upgrade"><strong>${UPGRADES[model.state.upgrade].name}</strong><span>${UPGRADES[model.state.upgrade].detail}</span></div>`:''}<button class="primary-button" data-action="resume">Back to the battlements</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button><button class="secondary-button" data-action="restart">Restart siege</button><button class="secondary-button" data-action="title">Return to title</button></div>`);
+  setMenu(`<div class="panel pause-panel"><span class="eyebrow">TAKE A BREATHER</span><span class="medal">Ⅱ</span><h1>The siege can wait.</h1><p>Your little kingdom is right where you left it.</p>${upgradeCount(model.state.upgrades)?`<div class="pause-upgrade">${upgradeCount(model.state.upgrades)} purchased ranks. Blueprints activate only at 5/5.</div>`:''}<button class="primary-button" data-action="resume">Back to the battlements</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button><button class="secondary-button" data-action="restart">Restart siege</button><button class="secondary-button" data-action="title">Return to title</button></div>`);
 }
 function resume(){if(mode!=='paused')return;mode='playing';$('overlay').hidden=true;$('controls').hidden=false;$('pauseButton').disabled=false;audio.setActive(true);audio.unlock();}
 function settings(returnTo=null){
@@ -76,8 +75,13 @@ function setVolume(channel,value){
   if($(channel)){$(channel).value=volumePercent(audio[channel],saved[channel+'Ceiling']);$(channel+'Value').textContent=`${volumePercent(audio[channel],saved[channel+'Ceiling'])}%`;}
 }
 function workshop(nextLevel=null){
+  if(!workshopUnlocked())return;
   releaseAll();workshopLevel=nextLevel;mode='workshop';$('hud').hidden=true;
-  setMenu(`<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Strengthen the keep.</h1><p>Choose one upgrade for your campaign defense.</p><div class="upgrade-choices">${Object.entries(UPGRADES).map(([id,upgrade])=>`<button class="upgrade-choice ${saved.upgrade===id?'selected':''}" data-upgrade="${id}" aria-pressed="${saved.upgrade===id}"><span class="upgrade-icon" aria-hidden="true">${upgrade.icon}</span><span class="upgrade-copy"><strong>${upgrade.name}${saved.upgrade===id?' <small>FITTED</small>':''}</strong><b>${upgrade.stat}</b><span>${upgrade.summary}</span></span></button>`).join('')}</div><div class="workshop-note">${nextLevel?`Choose to begin siege ${nextLevel}.`:'Choose to fit your keep.'} Swap here between sieges; upgrades never stack.</div><button class="secondary-button" data-action="${nextLevel?'levels':'title'}">${nextLevel?'Choose a different siege':'Back to the keep'}</button></div>`);
+  const r=saved.upgrades;
+  setMenu('<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Little improvements.</h1><div class="star-wallet">✦ '+saved.stars+' stars</div><p>All purchases stack. Every rank costs '+UPGRADE_COST+' stars.<br>Blueprints do nothing until all five stages are built.</p>'+Object.entries(BRANCHES).map(([branch,info])=>'<section class="upgrade-branch"><h2>'+info.icon+' '+info.name+'</h2>'+Object.entries(UPGRADES).filter(([,u])=>u.branch===branch).map(([id,u])=>{
+    const rank=r[id],full=rank===u.max,available=canBuild(r,id),affordable=saved.stars>=UPGRADE_COST;
+    return '<button class="upgrade-choice purchase-choice '+(full?'complete':'')+'" data-upgrade="'+id+'" '+(full||!available||!affordable?'disabled':'')+'><span class="upgrade-copy"><strong>'+u.name+' <small>'+rank+' / '+u.max+'</small></strong><span class="build-progress">'+Array.from({length:u.max},(_,i)=>'<i class="'+(i<rank?'built':'')+'"></i>').join('')+'</span><span>'+u.detail+'</span><b>'+(full?'COMPLETE':!available?'Requires 3 small ranks in this branch':u.blueprint?'Build stage '+(rank+1)+' · ✦ '+UPGRADE_COST+' · '+(rank<4?'No effect yet':'Activates blueprint'):'Buy rank '+(rank+1)+' · ✦ '+UPGRADE_COST)+'</b></span></button>';
+  }).join('')+'</section>').join('')+'<button class="primary-button" data-action="workshop-continue">'+(nextLevel?'Continue to siege '+nextLevel:'Back to the keep')+'</button><div class="workshop-note">Earn stars by destroying engines. Every victory earns at least 50 stars. Replays also earn stars.</div></div>');
 }
 function levels(){
   mode='levels';$('hud').hidden=true;
@@ -90,8 +94,9 @@ function enemyGuide(){
 }
 function result(){
   const s=model.state,won=s.phase==='won',final=won&&s.level===TOTAL_LEVELS;mode='result';releaseAll();
+  const reward=runContext.testing?0:siegeReward(s);
   const earned=recordResult(saved,s,runContext);save();
-  setMenu('<div class="panel"><span class="eyebrow">SIEGE '+s.level+(runContext.testing?' · TEST':won?' DEFENDED':' · SETBACK')+'</span><span class="medal">'+(won?'✦':'◇')+'</span><h1>'+(final?'Long live the keep!':won?'Still standing.':'A little too brave.')+'</h1><p>'+(runContext.testing?'Test defense. Your campaign progress is unchanged.':final?'Nineteen sieges. The kingdom stands together.':won?'The next outpost needs you.':'Read the incoming shells. Hide before they reach the keep.')+'</p>'+(earned.length?'<div class="reward-note">New castle colors: '+earned.join(', ')+'!</div>':'')+'<div class="result-stats"><div><strong>'+s.score.toLocaleString()+'</strong><span>Score</span></div><div><strong>'+s.perfects+'</strong><span>Perfect ducks</span></div><div><strong>'+(won?s.hearts:s.kills)+'</strong><span>'+(won?'Hearts saved':'Defeated')+'</span></div></div><button class="primary-button" data-action="'+(won&&!final?'next':'restart')+'">'+(won&&!final?'On to siege '+(s.level+1):'Defend it again')+'</button><button class="secondary-button" data-action="levels">Choose a siege</button><button class="secondary-button" data-action="title">Back to the keep</button></div>');
+  setMenu('<div class="panel"><span class="eyebrow">SIEGE '+s.level+(runContext.testing?' · TEST':won?' DEFENDED':' · SETBACK')+'</span><span class="medal">'+(won?'✦':'◇')+'</span><h1>'+(final?'Long live the keep!':won?'Still standing.':'A little too brave.')+'</h1><p>'+(runContext.testing?'Test defense. Your campaign progress is unchanged.':final?'Nineteen sieges. The kingdom stands together.':won?'✦ '+reward+' stars banked. Spend them on small improvements before the next siege.':'Read the incoming shells. Hide before they reach the keep.')+'</p>'+(earned.length?'<div class="reward-note">New castle colors: '+earned.join(', ')+'!</div>':'')+'<div class="result-stats"><div><strong>'+reward.toLocaleString()+'</strong><span>Stars earned</span></div><div><strong>'+s.perfects+'</strong><span>Perfect ducks</span></div><div><strong>'+(won?s.hearts:s.kills)+'</strong><span>'+(won?'Hearts saved':'Defeated')+'</span></div></div><button class="primary-button" data-action="'+(won&&!final?'earn-upgrades':'restart')+'">'+(won&&!final?'Upgrade the keep':'Defend it again')+'</button><button class="secondary-button" data-action="levels">Choose a siege</button><button class="secondary-button" data-action="title">Back to the keep</button></div>');
 }
 function resetSaveMenu(){
   mode='reset';setMenu('<div class="panel"><span class="eyebrow">START FRESH</span><h1>Reset all saves?</h1><p>This clears campaign progress, scores, upgrades, colors, tester access and sound settings on this browser.</p><button class="primary-button" data-action="confirm-reset">Reset everything</button><button class="secondary-button" data-action="cancel-reset">Keep my saves</button></div>');
@@ -104,10 +109,10 @@ function resetAllSaves(){
 function toast(message,duration=1.5,type=''){$('toast').textContent=message;$('toast').className=`toast visible ${type}`;toastTimer=duration;}
 function updateHUD(){
   const s=model.state;
-  const upgrade=UPGRADES[s.upgrade];
-  $('upgradeStatus').hidden=!upgrade;
-  $('upgradeStatus').textContent=upgrade?`${upgrade.icon} ${upgrade.name}${s.upgrade==='gate'?(s.gateShield?' · BLOCK READY':' · BLOCK USED'):''}`:'';
-  $('score').textContent=s.score.toLocaleString();
+  const count=upgradeCount(s.upgrades);
+  $('upgradeStatus').hidden=!count;
+  $('upgradeStatus').textContent=count?count+' improvement ranks'+(s.upgrades.gate===5?(s.gateShield?' · GATE READY':' · GATE USED'):''):'';
+  $('score').textContent=(saved.stars+s.stars).toLocaleString();
   $('terrainName').textContent=ROUTES[s.terrain]?.name||'Open road';
   const boss=s.enemies.find(e=>e.type==='boss');$('bossStatus').hidden=!boss;
   if(boss){$('bossLabel').textContent='MOVING FORTRESS · '+(boss.bossPhase==='ram'?'FINAL RAM ADVANCE':boss.bossPhase==='reload'?'WEAK POINT OPEN':boss.enraged?'ENRAGED SALVO':'ARMORED SALVO');$('bossHealth').style.width=(boss.hp/boss.maxHp*100)+'%';$('bossValue').textContent=boss.hp+' / '+boss.maxHp;}
@@ -123,7 +128,7 @@ function updateHUD(){
 function processEvents(events){
   for(const event of events){
     audio.play(event.type,event);
-    if(event.type==='perfect')toast(`Perfect duck!${event.combo>1?' ×'+event.combo:''}  +${event.points}`,1.4,'perfect');
+    if(event.type==='perfect')toast(`Perfect duck!${event.combo>1?' ×'+event.combo:''}`,1.4,'perfect');
     if(event.type==='dodge')toast('Missed me!',.9);
     if(event.type==='recovery')toast('Field clear · Hearts restored · Wave '+event.wave,2,'perfect');
     if(event.type==='supportOpen')toast('Repair banner open · Archers targeting wagon',2);
@@ -138,9 +143,9 @@ $('overlay').addEventListener('click',event=>{
   const button=event.target.closest('button');if(!button||button.disabled)return;
   audio.unlock();
   if(button.dataset.upgrade){
-    saved.upgrade=validUpgrade(button.dataset.upgrade);save();
-    const nextLevel=workshopLevel;
-    if(nextLevel)startLevel(nextLevel);else {title();toast(`${UPGRADES[saved.upgrade].name} fitted!`,2);}
+    const id=button.dataset.upgrade;
+    const scroll=$('overlay').querySelector('.workshop-panel')?.scrollTop||0;
+    if(buyUpgrade(saved,id)){save();workshop(workshopLevel);$('overlay').querySelector('.workshop-panel').scrollTop=scroll;toast(UPGRADES[id].name+' · '+saved.upgrades[id]+'/5',1.5);}
     return;
   }
   if(button.dataset.color){saved.cosmetic=button.dataset.color;save();model.state.cosmetic=saved.cosmetic;wardrobe();return;}
@@ -152,10 +157,11 @@ $('overlay').addEventListener('click',event=>{
   if(action==='levels')levels();
   if(action==='resume')resume();
   if(action==='restart')restartRun();
-  if(action==='next'){
-    const next=Math.min(TOTAL_LEVELS,model.state.level+1);
-    if(UPGRADE_MILESTONES.includes(model.state.level)){workshop(next);}else startLevel(next);
+  if(action==='earn-upgrades'){
+    if(runContext.testing)startLevel(Math.min(TOTAL_LEVELS,model.state.level+1));
+    else workshop(model.state.level<TOTAL_LEVELS?model.state.level+1:null);
   }
+  if(action==='workshop-continue'){const next=workshopLevel;if(next)startLevel(next);else title();}
   if(action==='workshop'&&workshopUnlocked())workshop();
   if(action==='guide')enemyGuide();
   if(action==='settings')settings();

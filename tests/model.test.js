@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, LEVEL_CONFIGS, getLevelConfig } from '../src/model.js';
 import { simulate } from '../scripts/balance-report.mjs';
-import { UPGRADES, validUpgrade } from '../src/upgrades.js';
+
 
 function run(model, policy = () => false, limit = 140) {
   const dt = 1 / 60;
@@ -27,7 +27,6 @@ test('doing nothing loses; hiding forever also loses', () => {
     assert.equal(hidden.kills, 0);
   }
 });
-
 test('a readable timing policy wins every siege with its full starting hearts', () => {
   for (let level = 1; level <= TOTAL_LEVELS; level++) {
     for (const seed of [1234, 7, 99]) {
@@ -205,87 +204,4 @@ test('a finished round freezes and emits its result only once', () => {
   model.setHolding(true);
   assert.deepEqual(model.state, finished);
   assert.deepEqual(model.drainEvents(), []);
-});
-
-test('upgrades activate from siege 4 and reject invalid or stacked choices', () => {
-  for (const upgrade of Object.keys(UPGRADES)) {
-    assert.equal(new GameModel(3, 7, upgrade).state.upgrade, null);
-    assert.equal(new GameModel(4, 7, upgrade).state.upgrade, upgrade);
-  }
-  for (const invalid of ['toString', '__proto__', 'unknown', ['gate','archers'], {}]) {
-    assert.equal(validUpgrade(invalid), null);
-    const model = new GameModel(4, 7, invalid);
-    assert.equal(model.state.upgrade, null);
-    assert.equal(model.riseSpeed, 4);
-    assert.equal(model.fireInterval, .68);
-    assert.equal(model.state.gateShield, 0);
-  }
-});
-
-test('counterweight rises faster without changing ducking or enemy timing', () => {
-  const plain = new GameModel(4, 7), upgraded = new GameModel(4, 7, 'counterweight');
-  for (const model of [plain, upgraded]) {
-    model.setHolding(true);model.update(.1);
-  }
-  assert.equal(upgraded.state.exposure, plain.state.exposure);
-  for (const model of [plain, upgraded]) {
-    model.update(.15);model.setHolding(false);model.update(.1);
-  }
-  assert.ok(Math.abs(plain.state.exposure - .4) < 1e-8);
-  assert.ok(Math.abs(upgraded.state.exposure - .6) < 1e-8);
-  assert.equal(upgraded.fireInterval, plain.fireInterval);
-  plain.spawnEnemy();upgraded.spawnEnemy();
-  assert.deepEqual(upgraded.state.enemies, plain.state.enemies);
-});
-
-test('twin archers fire more often with unchanged arrow damage', () => {
-  function shots(upgrade) {
-    const model = new GameModel(4, 7, upgrade);
-    model.spawnTimer = Infinity;
-    model.state.enemies = [{id:100,type:'ram',hp:100,maxHp:100,speed:0,progress:.2,lane:0}];
-    model.update(2.6);
-    return model.drainEvents().filter(event => event.type === 'shot');
-  }
-  const plain=shots(null), faster=shots('archers');
-  assert.equal(plain.length, 4);assert.equal(faster.length, 5);
-  assert.ok(faster[3].time < plain[3].time - .3);
-  assert.ok(faster.every(event => event.damage === 1));
-  assert.ok(Math.abs((faster[1].time-faster[0].time)-.55) < .01);
-});
-
-test('reinforced gate blocks one actual breach, not cannonballs, and renews next siege', () => {
-  const model = new GameModel(4, 7, 'gate');
-  model.spawnTimer=Infinity;
-  model.state.projectiles.push({id:99,lane:0,elapsed:0,duration:.001,progress:0});
-  model.update(.01);
-  assert.equal(model.state.hearts, 2);
-  assert.equal(model.state.gateShield, 1);
-  model.setHolding(true);
-  function breach(id) {
-    model.state.enemies.push({id,type:'ram',hp:14,maxHp:14,speed:1,progress:.999,lane:0});
-    model.update(.01);
-    assert.equal(model.state.enemies.length, 0, 'blocked units must leave the battlefield');
-  }
-  breach(100);
-  assert.equal(model.state.hearts, 2);
-  assert.equal(model.state.gateShield, 0);
-  breach(101);
-  assert.equal(model.state.hearts, 1);
-  const events=model.drainEvents();
-  assert.equal(events.filter(event => event.type === 'gateBlock').length, 1);
-  assert.equal(events.filter(event => event.type === 'hit' && event.reason === 'breach').length, 1);
-  assert.equal(new GameModel(5, 7, 'gate').state.gateShield, 1);
-});
-
-test('each single upgrade preserves a completable later campaign', () => {
-  for (const upgrade of Object.keys(UPGRADES)) {
-    for (let level=4;level<=TOTAL_LEVELS;level++) {
-      for(const seed of [7,99,1234]) {
-        const state=run(new GameModel(level, seed, upgrade), timingPolicy);
-        assert.equal(state.phase, 'won', `${upgrade}, siege ${level}, seed ${seed}`);
-        assert.equal(state.hearts, getLevelConfig(level).hearts||3);
-        assert.equal(state.kills, state.total);
-      }
-    }
-  }
 });

@@ -16,6 +16,24 @@ Designed for portrait phones, with mouse and keyboard support on desktop. A mode
 
 Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for **2 damage**, shown by a larger cyan projectile and cyan damage number. Every full-health enemy needs multiple hits; an injured enemy can still be finished by one arrow. Early ducks are safe, but do not earn the bonus and consume valuable firing time. Three hits or breaches end a siege; victory restores your hearts for the next one. Enemies signal a shot with a glowing fuse and ground ring. Twin cannons fire twice; volley carts fire three spaced shots. Use the **Enemy guide** on the title or pause menu for their strengths.
 
+## Version 1.6: stars and small upgrades
+
+A fresh keep begins with **zero stars and zero upgrades**. Win siege 1 to open the workshop. The tutorial siege always uses the basic keep, even on replay. All purchased ranks stack from siege 2 onward; siege 14 temporarily disables equipment without deleting purchases.
+
+Destroyed engines drop stars: cannon 5, twin cannon 7, ram 11, ironclad/volley/ballista 9, mortar 11, repair wagon 13, fortress 90. Stars are banked at the result screen, including kills in a lost siege. Perfect ducks still power arrows but do not create currency. Each victory pays **at least 50 stars**: if enemy drops total less, a completion bonus makes up the difference. Replays pay too. Every purchase costs 50 stars, so each completed siege funds at least one remaining small rank or unlocked construction stage. Purchases are optional; continuing without buying remains possible.
+
+There are **45 purchasable ranks** across three branches:
+
+| Branch | Small improvements, five ranks each | Five-stage blueprint |
+| --- | --- | --- |
+| The Barrage | Archer drills: +3% firing rate per rank. Fine fletching: +4% arrow speed per rank. | Piercing ballista: every fourth shot damages a nearby second engine with a 1-damage arrow. |
+| The Shadows | Counterweights: +4% rise speed per rank. Steady nerves: +0.02 seconds to the early edge of a perfect duck per rank. | Kinetic springboard: a powered return shot scatters two extra 1-damage arrows at different engines. |
+| The Bastion | Deep foundations: +3% duck speed per rank. Rampart screens: 1% more protection during ducking per rank. | Iron portcullis: block one breach per siege; renew at endurance recovery. |
+
+Buy three small ranks in a branch to unlock its blueprint. **Construction stages 1–4 have no effect. Stage 5 activates the whole blueprint.** The workshop shows five segments, prerequisites, prices, completion, and the delayed effect explicitly. Mix branches freely. Bonuses add relative to the base values: five archer ranks give +15% rate, not five compounding multipliers. Ordinary arrow damage and hearts are unchanged. Bonus arrows target different engines; they cannot bypass closed fortress armor.
+
+Older saves retain progression, scores, colors, tester access and actual audio settings. The old free fitted upgrade is replaced by the new tree; migration grants **50 catch-up stars per previously completed siege**, with no free upgrade ranks. This credit is applied only once. Tester victories never grant stars or rewards. Reset clears the wallet and all construction stages.
+
 ## Version 1.5: one campaign
 
 Terrain is now assigned by the campaign. Sieges 1–3 teach the original controls on an open road; 4–6 teach the bridge queue; 7–9 use a slower winding mountain road with 15% longer shell flight; 10 onward combine terrains with the new enemy mechanics. Courtyard attackers alternate between two lanes. The original siege numbers and saved unlocks are retained.
@@ -33,11 +51,11 @@ The former extra-mode ideas become six authored campaign defenses after siege 13
 
 Mortars launch high shells with a landing ring and descending whistle. Repair wagons have three one-HP repairs and become an automatic priority target for three seconds after repairing. The fortress blocks arrows during its armored salvo, exposes a golden weak point while reloading, fires a third shot after half health, and becomes a ram at one-quarter health.
 
-The workshop still offers one fitted upgrade. The no-equipment siege temporarily disables it without changing your saved choice. Hearts reset for each new siege, except the authored two-heart defense. Castle colors remain cosmetic rewards for three hearts, stopping a ram without a ram breach, or five perfect ducks without taking damage.
+Purchased upgrades now stack. The no-equipment siege temporarily disables them without changing your saved ranks. Hearts reset for each new siege, except the authored two-heart defense. Castle colors remain cosmetic rewards for three hearts, stopping a ram without a ram breach, or five perfect ducks without taking damage.
 
 ### Testing controls
 
-Open **Settings**, then tap the invisible **44 × 44 area in the upper-left corner of the game** five times, with less than two seconds between taps. A toast confirms tester access. **Choose a siege** now permits all 19 defenses, including after reload. Repeat the five taps to disable it. Test victories do not change campaign progress, records or rewards; introductory and restricted siege rules still apply. A fresh tester keep uses Twin archers where upgrades are allowed.
+Open **Settings**, then tap the invisible **44 × 44 area in the upper-left corner of the game** five times, with less than two seconds between taps. A toast confirms tester access. **Choose a siege** now permits all 19 defenses, including after reload. Repeat the five taps to disable it. Test victories do not change campaign progress, records or rewards; introductory and restricted siege rules still apply. Tester access uses the purchased ranks; it grants no free equipment or money.
 
 **Reset all saves** is visible in Settings. Its confirmation screen clears this game's local save, including progress, scores, equipment, colors, legacy extra-mode records, tester access, mute and volume choices. Cancel preserves everything. No other browser data is touched.
 
@@ -57,17 +75,7 @@ See [EXPANSION_PLAN.md](EXPANSION_PLAN.md) for the expansion design and remainin
 
 ## Version 1.2: castle workshop and music
 
-Win siege **3** to open the workshop before siege 4. Choose **one** upgrade:
-
-| Upgrade | Effect | Tradeoff |
-| --- | --- | --- |
-| **Counterweight** | Rise speed increases from 4 to 6: **50% faster**. | More firing time after each duck; duck speed and enemy warnings are unchanged. |
-| **Twin archers** | Fire every **0.55 seconds**, instead of 0.68: about **24% more often**. | Better sustained damage against armor and rams; individual arrows still deal 1 or 2 damage. |
-| **Reinforced gate** | Block **one breach per siege** without losing a heart. | The brace is consumed, and later breaches hurt normally. Cannonballs are never blocked. |
-
-Only one upgrade is active at a time. The **Castle workshop** on the title lets you swap between sieges. Winning sieges **6** and **9** also offers a fresh choice before advancing. Equipment and an upgrade label appear on the keep; the gate label shows whether its block is ready or used. The pause menu explains the fitted upgrade.
-
-Upgrades apply to sieges **4–19**, except the unequipped outpost, including restarts. Replaying the first three sieges keeps their original rules. Existing saves retain all unlocked levels and scores; if you already reached siege 4 or later, continuing offers the upgrade choice. The gate block renews on every new siege .
+This historical release introduced the original single-choice workshop. Version 1.6 replaces it with the star-funded tree described above.
 
 `assets/Hammer_and_Gate.mp3` is the user-supplied main background music. It loops quietly alongside the effects at the selected volume. Its bytes are copied unchanged from the supplied file and included in the itch.io archive.
 
@@ -91,7 +99,7 @@ Open **http://localhost:4173**. No `npm install` or build step is needed. Use a 
 
 ## Development checks
 
-Run `npm test` for deterministic rules, audio, and save checks, including all 19 sieges, every route/upgrade pairing, capped repairs, boss phases, campaign restrictions, endurance recovery and tester isolation. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, audio, hidden tester access, campaign restrictions, endurance waves, the final fortress and save reset. Allow about three minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
+Run `npm test` for deterministic rules, audio, and save checks, including all 19 sieges, gradual and completed upgrade builds, star affordability, migration, capped repairs, boss phases, endurance recovery and tester isolation. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, first-victory earnings, purchases, blueprint UI, audio, hidden tester access, campaign restrictions, endurance waves, the final fortress and save reset. Allow about four minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
 
 Run `npm run balance` for a simulation report covering enemy health, simultaneous threats, approach distance, time under cover, and precise versus cautious timing policies. Simulations verify that all nineteen sieges remain completable; they do not replace human difficulty feedback.
 

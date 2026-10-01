@@ -13,7 +13,7 @@ function isolated(type){
 }
 test('all three routes remain completable with each upgrade, on every eligible siege',()=>{
   for(const route of Object.keys(ROUTES))for(let level=4;level<=12;level++)for(const upgrade of ['counterweight','archers','gate']){
-    const s=play(new GameModel(level,99,upgrade,{route}));
+    const s=play(new GameModel(level,99,{[upgrade]:5},{route}));
     assert.equal(s.phase,'won',`${route}, ${level}, ${upgrade}`);assert.equal(s.hearts,3,`${route}, ${level}, ${upgrade}`);
   }
 });
@@ -55,7 +55,7 @@ test('boss armor blocks arrows, reload exposes it, half health adds a third shot
 test('legacy saves preserve real volume and progression, including unlocking the expansion after siege ten',()=>{
   const old={unlocked:10,completed:10,best:{10:1234},upgrade:'gate',musicVolume:.03,sfxVolume:.25};
   const saved=restoreProgress(old);assert.equal(saved.unlocked,11);assert.equal(saved.completed,10);assert.equal(saved.best[10],1234);
-  assert.equal(saved.musicVolume,.03);assert.equal(saved.sfxVolume,.25);assert.equal(saved.upgrade,'gate');
+  assert.equal(saved.musicVolume,.03);assert.equal(saved.sfxVolume,.25);assert.equal(saved.upgrades.gate,0);assert.equal(saved.stars,500);
   assert.deepEqual(saved.colors,['blue']);assert.equal(restoreProgress({routes:{4:'__proto__'},cosmetic:'unknown'}).cosmetic,'blue');
 });
 test('campaign wins award colors and preserve the best siege score',()=>{
