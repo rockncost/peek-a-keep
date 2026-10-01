@@ -42,7 +42,7 @@ test('a readable timing policy can win every level with three hearts', () => {
 });
 
 function singleTarget(type, powered = false) {
-  const model = new GameModel(10, 7);
+  const model = new GameModel(13, 7,null,{config:{...LEVEL_CONFIGS[12],total:1,formation:[type]}});
   let enemy;
   while (!enemy) {
     model.spawnEnemy();
@@ -50,6 +50,7 @@ function singleTarget(type, powered = false) {
   }
   enemy.attackTimer = Infinity;
   enemy.speed = 0;
+  if(type==='boss'){enemy.bossElapsed=3;enemy.bossPhase='reload';enemy.bossFired=2;}
   model.state.enemies = [enemy];
   model.spawnTimer = Infinity;
   model.state.power = powered;
@@ -99,14 +100,14 @@ test('rams gain substantial health without faster movement or closer spawning', 
   }
 });
 
-test('six enemy types enter progressively and the final formations mix all six', () => {
-  const introduced = { cannon: 1, ram: 2, double: 3, armored: 4, volley: 6, ballista: 8 };
-  assert.equal(Object.keys(ENEMY_TYPES).length, 6);
+test('nine enemy types enter progressively, preserving the original mixed formations', () => {
+  const introduced = { cannon: 1, ram: 2, double: 3, armored: 4, volley: 6, ballista: 8,mortar:11,support:12,boss:13 };
+  assert.equal(Object.keys(ENEMY_TYPES).length, 9);
   for (const [type, firstLevel] of Object.entries(introduced)) {
     assert.equal(LEVEL_CONFIGS.findIndex(config => config.formation.includes(type)) + 1, firstLevel);
   }
-  for (const config of LEVEL_CONFIGS.slice(-3)) {
-    assert.deepEqual(new Set(config.formation), new Set(Object.keys(ENEMY_TYPES)));
+  for (const config of LEVEL_CONFIGS.slice(7,10)) {
+    assert.deepEqual(new Set(config.formation), new Set(['cannon','ram','double','armored','volley','ballista']));
   }
 });
 

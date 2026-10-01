@@ -16,7 +16,7 @@
     <button id="soundButton" class="icon-button global-sound" aria-label="Mute sound" title="Toggle music and sound"></button>
     <header id="hud" class="hud">
       <div class="topline">
-        <div class="level-info"><span class="eyebrow" id="levelNumber">SIEGE 01 / 10</span><strong id="levelName">The first knock</strong></div>
+        <div class="level-info"><span class="eyebrow" id="levelNumber">SIEGE 01 / 13</span><strong id="levelName">First light</strong></div>
         <div class="icon-buttons">
           <button id="pauseButton" class="icon-button" aria-label="Pause game" title="Pause (P)"><svg viewBox="0 0 24 24"><path d="M8 6v12M16 6v12"/></svg></button>
           <span class="sound-space" aria-hidden="true"></span>
@@ -25,6 +25,8 @@
       <div class="status-row"><div id="hearts" class="hearts" aria-label="3 hearts"></div><span class="score"><span class="score-star">✦</span> <span id="score">0</span></span></div>
       <div class="wave-row"><span id="waveLabel">0 / 8 defeated</span><div class="wave-track"><div id="waveProgress"></div></div></div>
       <div id="upgradeStatus" class="upgrade-status" hidden></div>
+      <div id="terrainName" class="terrain-name"></div>
+      <div id="bossStatus" class="boss-status" hidden><div><span id="bossLabel"></span><span id="bossValue"></span></div><div class="boss-track"><div id="bossHealth"></div></div></div>
     </header>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="combatHint" class="combat-hint"></div>

@@ -70,6 +70,10 @@ export class GameAudio {
       if(details.enemyType==='ballista'){this.noiseBurst(0,.12,.1,'highpass',1600);this.tone(280,.15,'triangle',.07,90);}
       else this.cannonBlast(details.enemyType==='armored');
     }
+    if(type==='mortarWhistle')this.tone(1400,.75,'sine',.035,260);
+    if(type==='repair'){this.tone(420,.2,'triangle',.03,630);}
+    if(type==='armorBlock')this.tone(260,.08,'triangle',.025,170);
+    if(type==='bossEnrage'){this.tone(90,.6,'sawtooth',.04,45);}
     if(type==='duck')this.tone(240,.16,'sine',.055,80);
     if(type==='rise')this.tone(120,.15,'sine',.04,310);
     if(type==='kill')this.tone(185,.14,'triangle',.05,70);

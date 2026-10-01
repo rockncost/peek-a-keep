@@ -1,7 +1,8 @@
 import { UPGRADE_UNLOCK_LEVEL, validUpgrade } from './upgrades.js';
+import { CHALLENGES, routeConfig, seededRandom } from './content.js';
 
 /** Pure, deterministic game rules. All times are seconds and positions are 0–1. */
-export const TOTAL_LEVELS = 10;
+export const TOTAL_LEVELS = 13;
 
 // Each ranged unit changes the rhythm; rams trade all ranged attacks for durability.
 export const ENEMY_TYPES = Object.freeze({
@@ -11,6 +12,9 @@ export const ENEMY_TYPES = Object.freeze({
   armored: { name: 'Ironclad', description: 'Thick armor protects a heavy cannon.', maxHp: 7, speed: 0.020, points: 180, burstCount: 1, burstGap: 0, flightTime: 1.3, warningTime: 1.05, impactOffset: 0.18 },
   volley: { name: 'Volley cart', description: 'Three spaced shots keep you underground.', maxHp: 5, speed: 0.024, points: 180, burstCount: 3, burstGap: 0.46, flightTime: 1.1, warningTime: 0.85, impactOffset: 0 },
   ballista: { name: 'Ballista', description: 'A bright wind-up warns of a fast bolt.', maxHp: 4, speed: 0.025, points: 180, burstCount: 1, burstGap: 0, flightTime: 0.70, warningTime: 1.05, impactOffset: 1.28 },
+  mortar: { name:'Mortar',description:'High, slow shells. Watch the landing shadow and whistle.',maxHp:6,speed:.021,points:220,burstCount:1,burstGap:0,flightTime:2.05,warningTime:1.2,impactOffset:.65 },
+  support: { name:'Repair wagon',description:'Repairs nearby engines three times. Archers prioritize its open banner.',maxHp:5,speed:.022,points:250,burstCount:0,burstGap:0,flightTime:0,warningTime:0,impactOffset:0 },
+  boss: { name:'Moving Fortress',description:'Armored salvo, exposed reload, then a final ram advance. Fire at the open weak point.',maxHp:40,speed:.008,points:1800,burstCount:2,burstGap:.5,flightTime:1.1,warningTime:.9,impactOffset:0 },
 });
 
 const level = (label, spawnInterval, cycleTime, ramHp, healthBonus, formation) =>
@@ -27,46 +31,51 @@ export const LEVEL_CONFIGS = Object.freeze([
   level('A sharper threat', 3.3, 4.9, 20, 0, ['ballista','cannon','volley','ram','armored','double','ballista','volley','cannon','armored','double','ballista','volley']),
   level('The siege council', 3.1, 4.8, 21, 0, ['armored','volley','ballista','ram','double','cannon','armored','ballista','volley','double','cannon','armored','ballista','volley']),
   level('The last keep', 2.9, 4.7, 22, 0, ['volley','armored','ballista','ram','double','cannon','volley','armored','ballista','double','volley','armored','cannon','ballista','double']),
+  level('The decoy battery',3.7,5.9,22,0,['mortar','cannon','mortar','ram','ballista','mortar','cannon','armored']),
+  level('The convoy',3.5,5.8,22,0,['armored','support','ram','mortar','double','ballista','armored','volley','support','mortar']),
+  level('The Moving Fortress',5.5,6.5,22,0,['armored','mortar','boss']),
 ]);
 
-export function getLevelConfig(levelNumber) {
-  return LEVEL_CONFIGS[Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(Number(levelNumber) || 1))) - 1];
+export function getLevelConfig(levelNumber,route=null) {
+  const number=Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(Number(levelNumber) || 1)));
+  const base=LEVEL_CONFIGS[number-1];
+  return number>=4&&number<=12?routeConfig(base,route,number):{...base,terrain:number===13?'courtyard':'plain'};
+}
+
+export function getChallengeConfig(id){
+  const challenge=CHALLENGES[id];
+  const config=getLevelConfig(challenge.level,challenge.route);
+  if(id!=='convoy')return config;
+  const formation=[...config.formation];formation.splice(2,0,'ram','ram','ram');
+  return {...config,formation,total:formation.length,spawnInterval:3.4};
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const STEP = 1 / 120;
 
-function randomGenerator(seed) {
-  let value = seed >>> 0;
-  return () => {
-    value += 0x6d2b79f5;
-    let result = Math.imul(value ^ (value >>> 15), value | 1);
-    result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
-    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export class GameModel {
-  constructor(level = 1, seed = 1234, upgrade = null) {
+  constructor(level = 1, seed = 1234, upgrade = null, options = {}) {
     level = clamp(Math.floor(Number(level) || 1), 1, TOTAL_LEVELS);
-    this.random = randomGenerator(seed);
+    this.random = seededRandom(seed);
     this.events = [];
     this.nextId = 1;
     this.spawned = 0;
     this.spawnTimer = 0.45;
-    this.config = getLevelConfig(level);
+    this.config = options.config || getLevelConfig(level,options.route);
     this.spawnInterval = this.config.spawnInterval;
     this.shotTimer = 0.15;
     this.duckStarted = -Infinity;
-    upgrade = level >= UPGRADE_UNLOCK_LEVEL ? validUpgrade(upgrade) : null;
+    upgrade = level >= UPGRADE_UNLOCK_LEVEL || options.mode ? validUpgrade(upgrade) : null;
     this.riseSpeed = upgrade === 'counterweight' ? 6 : 4;
     this.fireInterval = upgrade === 'archers' ? 0.55 : 0.68;
     this.state = {
-      phase: 'playing', level, time: 0, hearts: 3, score: 0, kills: 0,
+      phase: 'playing', level, time: 0, hearts: clamp(options.hearts??3,1,3), score: 0, kills: 0,
       total: this.config.total,
       enemies: [], projectiles: [], arrows: [],
       exposure: 1, holding: false, power: false, combo: 0, perfects: 0,
       progress: 0, spawned: 0, upgrade, gateShield: upgrade === 'gate' ? 1 : 0,
+      terrain:this.config.terrain||'plain',mode:options.mode||'campaign',round:options.round||1,
+      cosmetic:options.cosmetic||'blue',maxCombo:0,ramKills:0,ramBreaches:0,
     };
   }
 
@@ -109,19 +118,21 @@ export class GameModel {
     // Batteries fire within a shared attack window, leaving a reliable counterattack
     // window even when several survive. Units never shoot immediately on spawning.
     const firstImpact = 2.75 + archetype.impactOffset;
+    const flightTime=archetype.flightTime*(s.terrain==='mountain'?1.15:1);
     const earliestShot = s.time + 1.10 + this.random() * 0.12;
-    const cycle = Math.max(0, Math.ceil((earliestShot + archetype.flightTime - firstImpact) / this.config.cycleTime));
-    const alignedAttack = firstImpact + cycle * this.config.cycleTime - archetype.flightTime - s.time;
+    const cycle = Math.max(0, Math.ceil((earliestShot + flightTime - firstImpact) / this.config.cycleTime));
+    const alignedAttack = firstImpact + cycle * this.config.cycleTime - flightTime - s.time;
     // A newly arrived cannon must threaten the keep before three arrows destroy it.
     // After this opening shot it joins the battery's shared reload rhythm.
     const openingAttack = type !== 'ram' && alignedAttack > 1.7;
     const attackTimer = openingAttack ? earliestShot - s.time : alignedAttack;
     s.enemies.push({
-      id: this.nextId++, type, lane: (index + Math.floor(s.level / 3)) % 3 - 1,
+      id: this.nextId++, type, lane: s.terrain==='courtyard'?(index%2?-1:1):(index + Math.floor(s.level / 3)) % 3 - 1,
       progress: 0.035, hp: maxHp, maxHp, warning: 0,
       speed: archetype.speed,
       attackTimer, openingAttack,
       burstTimer: -1, burstRemaining: 0,
+      repairTimer:3.8,repairsLeft:3,exposedUntil:0,bossElapsed:0,bossFired:0,bossPhase:'salvo',enraged:false,
     });
     s.spawned = this.spawned;
   }
@@ -130,7 +141,7 @@ export class GameModel {
     const s = this.state;
     s.projectiles.push({
       id: this.nextId++, lane: enemy.lane, progress: 0, from: enemy.progress,
-      duration: ENEMY_TYPES[enemy.type].flightTime, elapsed: 0, type: enemy.type,
+      duration: ENEMY_TYPES[enemy.type].flightTime*(s.terrain==='mountain'?1.15:1), elapsed: 0, type: enemy.type,whistled:false,
     });
     this.emit('enemyShot', { enemyId: enemy.id, lane: enemy.lane, enemyType: enemy.type });
   }
@@ -152,6 +163,36 @@ export class GameModel {
     }
   }
 
+  tickSupport(enemy,dt) {
+    enemy.repairTimer-=dt;
+    enemy.warning=enemy.repairsLeft>0?clamp(1-enemy.repairTimer/1.2,0,1):0;
+    if(enemy.repairTimer>0||enemy.repairsLeft===0)return;
+    enemy.repairTimer=6;
+    const allies=this.state.enemies.filter(other=>other!==enemy&&other.type!=='boss'&&other.hp>0&&other.hp<other.maxHp&&Math.abs(other.progress-enemy.progress)<.22);
+    if(!allies.length)return;
+    enemy.repairsLeft--;
+    enemy.exposedUntil=this.state.time+3;
+    for(const ally of allies){ally.hp=Math.min(ally.maxHp,ally.hp+1);this.emit('repair',{enemyId:ally.id,lane:ally.lane,progress:ally.progress});}
+    this.emit('supportOpen');
+  }
+
+  tickBoss(enemy,dt) {
+    const previous=enemy.bossPhase;
+    if(enemy.hp<=enemy.maxHp*.25){
+      enemy.bossPhase='ram';enemy.speed=.028;enemy.warning=0;
+    }else{
+      if(!enemy.enraged&&enemy.hp<=enemy.maxHp*.5){enemy.enraged=true;this.emit('bossEnrage');}
+      const cycle=enemy.enraged?5.9:6.5;
+      enemy.bossElapsed+=dt;
+      if(enemy.bossElapsed>=cycle){enemy.bossElapsed-=cycle;enemy.bossFired=0;}
+      const shots=enemy.enraged?[.85,1.35,1.85]:[.85,1.35];
+      while(enemy.bossFired<shots.length&&enemy.bossElapsed>=shots[enemy.bossFired]){this.fireEnemy(enemy);enemy.bossFired++;}
+      enemy.bossPhase=enemy.bossElapsed<(enemy.enraged?2.6:2.2)?'salvo':'reload';
+      enemy.warning=enemy.bossPhase==='salvo'?clamp(enemy.bossElapsed/.85,0,1):0;
+    }
+    if(previous!==enemy.bossPhase)this.emit('bossPhase',{phase:enemy.bossPhase});
+  }
+
   tick(dt) {
     const s = this.state;
     s.time += dt;
@@ -163,14 +204,23 @@ export class GameModel {
     }
 
     for (const enemy of s.enemies) {
-      enemy.progress += enemy.speed * dt;
+      let movement=enemy.speed*dt*(s.terrain==='mountain'?.86:1);
+      if(s.terrain==='river'&&enemy.progress>.37&&enemy.progress<.56){
+        movement=Math.min(movement,.015*dt);
+        const ahead=s.enemies.filter(other=>other!==enemy&&other.progress>enemy.progress&&other.progress<.63).sort((a,b)=>a.progress-b.progress)[0];
+        if(ahead)movement=Math.min(movement,Math.max(0,ahead.progress-enemy.progress-.07));
+      }
+      enemy.progress += movement;
       if (enemy.progress >= 1) {
         enemy.breached = true;
+        if(enemy.type==='ram')s.ramBreaches++;
         this.hurt('breach', { enemyId: enemy.id, lane: enemy.lane });
         if (s.phase !== 'playing') return;
         continue;
       }
       if (enemy.type === 'ram') continue;
+      if(enemy.type==='support'){this.tickSupport(enemy,dt);continue;}
+      if(enemy.type==='boss'){this.tickBoss(enemy,dt);continue;}
       const archetype = ENEMY_TYPES[enemy.type];
       if (enemy.burstTimer >= 0) {
         enemy.burstTimer -= dt;
@@ -189,8 +239,9 @@ export class GameModel {
         if (enemy.openingAttack) {
           const firstImpact = 2.75 + archetype.impactOffset;
           const earliestNextShot = s.time + archetype.burstGap * (archetype.burstCount - 1) + 1.4;
-          const cycle = Math.ceil((earliestNextShot + archetype.flightTime - firstImpact) / this.config.cycleTime);
-          enemy.attackTimer = firstImpact + cycle * this.config.cycleTime - archetype.flightTime - s.time;
+          const flight=archetype.flightTime*(s.terrain==='mountain'?1.15:1);
+          const cycle = Math.ceil((earliestNextShot + flight - firstImpact) / this.config.cycleTime);
+          enemy.attackTimer = firstImpact + cycle * this.config.cycleTime - flight - s.time;
           enemy.openingAttack = false;
         } else {
           enemy.attackTimer += this.config.cycleTime;
@@ -203,7 +254,10 @@ export class GameModel {
     this.shotTimer = Math.max(0, this.shotTimer - dt);
     if (!s.holding && s.exposure >= 0.76 && this.shotTimer <= 0 && s.enemies.length) {
       // Ignore enemies already covered by arrows in flight when another target exists.
-      const byDistance = [...s.enemies].sort((a, b) => b.progress - a.progress);
+      const byDistance = [...s.enemies].sort((a, b) => {
+        const priority=e=>e.type==='support'&&e.exposedUntil>s.time?2:e.type==='boss'&&e.bossPhase==='salvo'?-1:0;
+        return priority(b)-priority(a)||b.progress-a.progress;
+      });
       const target = byDistance.find(enemy => {
         const incomingDamage = s.arrows.reduce((sum, arrow) =>
           sum + (arrow.targetId === enemy.id ? arrow.damage : 0), 0);
@@ -225,6 +279,9 @@ export class GameModel {
       const target = s.enemies.find(enemy => enemy.id === arrow.targetId);
       if (target) arrow.targetProgress = target.progress;
       if (arrow.progress >= 1 && target && target.hp > 0) {
+        if(target.type==='boss'&&target.bossPhase==='salvo'){
+          this.emit('armorBlock',{enemyId:target.id,lane:target.lane,progress:target.progress});continue;
+        }
         const damage = Math.min(target.hp, arrow.damage);
         target.hp = Math.max(0, target.hp - arrow.damage);
         this.emit('enemyHit', {
@@ -233,6 +290,7 @@ export class GameModel {
         });
         if (target.hp <= 0) {
           s.kills += 1;
+          if(target.type==='ram')s.ramKills++;
           const points = ENEMY_TYPES[target.type].points
             + (arrow.powered ? 50 : 0);
           s.score += points;
@@ -249,6 +307,7 @@ export class GameModel {
     for (const projectile of s.projectiles) {
       projectile.elapsed += dt;
       projectile.progress = clamp(projectile.elapsed / projectile.duration, 0, 1);
+      if(projectile.type==='mortar'&&!projectile.whistled&&projectile.duration-projectile.elapsed<.8){projectile.whistled=true;this.emit('mortarWhistle');}
       if (projectile.progress < 1) continue;
       if (s.exposure < 0.28) {
         const sinceDuck = s.time - this.duckStarted;
@@ -257,6 +316,7 @@ export class GameModel {
           s.power = true;
           s.perfects += 1;
           s.combo += 1;
+          s.maxCombo=Math.max(s.maxCombo,s.combo);
           const points = 25 * Math.min(s.combo, 4);
           s.score += points;
           this.emit('perfect', { lane: projectile.lane, combo: s.combo, points });

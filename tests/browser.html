@@ -17,7 +17,7 @@
 <body data-status="idle">
   <main>
     <h1>Browser integration checks</h1>
-    <p>Tests controls, upgrades, music, saved progress, and sieges 1, 3, and 10 in a 390 × 780 iframe. Allow about three minutes.</p>
+    <p>Tests controls, sound, campaign routes, the fortress, daily and endless modes in a 390 × 780 iframe. Allow about six minutes.</p>
     <button id="runChecks">Run checks</button>
     <div id="testStatus" role="status">Ready.</div>
     <ol id="log" aria-live="polite"></ol>
@@ -83,15 +83,17 @@
       await until(()=>el('duckButton').getAttribute('aria-pressed')===String(value),`Duck control did not become ${value?'held':'released'}`);
     }
     async function playSiegeUsingHints(siege=1){
-      let pendingDuckAt=0,holding=false,perfectSeen=false;
+      let pendingDuckAt=0,holding=false,perfectSeen=false,bossSeen=false;
       const end=performance.now()+90000;
       while(performance.now()<end){
         const menu=el('overlay');
+        if(visible(el('bossStatus')))bossSeen=true;
         if(visible(menu)&&menu.querySelector('.result-stats')){
           keyboard('keyup','Space');
-          assert(menu.textContent.includes(siege===10?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
+          assert(menu.textContent.includes(siege===13?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
           const perfectCount=Number(menu.querySelectorAll('.result-stats strong')[1]?.textContent);
           assert(perfectCount>0||perfectSeen,'No perfect duck was recorded');
+          if(siege===13)assert(bossSeen,'Fortress boss bar did not appear');
           log(`Real input timing won siege ${siege} with ${perfectCount} perfect ducks`);
           return;
         }
@@ -148,6 +150,7 @@
         click('[data-action="settings-back"]');
         log('Settings has independent saved sliders, accurate readouts, silent music, reset, and a cannon preview');
         if(new URLSearchParams(location.search).has('audio-only'))return;
+        if(!new URLSearchParams(location.search).has('expansion-only')){
         click('[data-action="play"]');
         await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Start button did not enter gameplay');
         assert(el('levelNumber').textContent.includes('01'),'Fresh game did not start siege 1');
@@ -179,12 +182,12 @@
         assert(doc().querySelector('[data-action="resume"]'),'Settings did not return to the paused siege');
         log('Pause settings keep the siege frozen and music paused');
         click('[data-action="guide"]');
-        assert(doc().querySelectorAll('.enemy-entry').length===6,'Enemy guide did not show all six types');
+        assert(doc().querySelectorAll('.enemy-entry').length===9,'Enemy guide did not show all nine types');
         assert(doc().querySelector('.guide-note').textContent.includes('2-damage'),'Enemy guide did not explain charged damage');
         click('[data-action="guide-back"]');
         assert(doc().querySelector('[data-action="resume"]'),'Guide did not return to the paused siege');
         assert(hudSnapshot()===frozenHUD,'Opening the guide advanced the paused siege');
-        log('Enemy guide explains six types and damage; returning preserves the paused siege');
+        log('Enemy guide explains nine types and damage; returning preserves the paused siege');
         click('[data-action="resume"]');
         await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Resume did not return to gameplay');
         log('Pause freezes the HUD; resume returns to gameplay');
@@ -213,6 +216,8 @@
         click('[data-action="next"]');
         assert(doc().querySelectorAll('[data-upgrade]').length===3,'Milestone did not offer three upgrades');
         click('[data-upgrade="gate"]');
+        assert(doc().querySelectorAll('[data-route]').length===3,'First route fork did not appear');
+        click('[data-route="river"]');
         await until(()=>el('levelNumber').textContent.includes('04'),'Upgrade choice did not begin siege 4');
         assert(el('upgradeStatus').textContent.includes('BLOCK READY'),'Reinforced gate was not fitted to siege 4');
         click('#pauseButton');
@@ -235,14 +240,48 @@
         // Test-only progress on the isolated 127.0.0.1 origin, restored in finally.
         localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:10,completed:9,best:{},muted:true}));
         await loadGame();click('[data-action="play"]');
+        click('[data-route="mountain"]');
         assert(doc().querySelectorAll('[data-upgrade]').length===3,'Existing completed saves did not receive an upgrade choice');
         click('[data-upgrade="counterweight"]');
         await until(()=>el('levelNumber').textContent.includes('10'),'Final siege did not start');
         log('Playing the mixed final formation through the real controls…','info');
         await playSiegeUsingHints(10);
         click('[data-action="levels"]');
-        assert(doc().querySelectorAll('.level-choice:not(:disabled)').length===10,'Final victory did not retain all unlocked sieges');
-        log('Final formation remains completable and campaign completion is saved');
+        assert(doc().querySelectorAll('.level-choice:not(:disabled)').length===11,'Siege ten did not unlock the expansion');
+        log('Original finale remains completable and now unlocks siege eleven');
+        }
+
+        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:13,completed:12,best:{},upgrade:'archers',muted:true}));
+        await loadGame();click('[data-action="play"]');
+        assert(el('terrainName').textContent==='Royal courtyard','Fortress terrain is missing');
+        log('Playing all fortress phases through real controls…','info');
+        await playSiegeUsingHints(13);
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).completed===13,'Boss victory did not complete campaign');
+        click('[data-action="title"]');click('[data-action="wardrobe"]');
+        assert(!doc().querySelector('[data-color="emerald"]').disabled,'Three-heart reward did not unlock');
+        click('[data-color="emerald"]');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).cosmetic==='emerald','Castle color selection was not saved');
+        log('Fortress victory, campaign completion and cosmetic rewards work');
+        click('[data-action="title"]');click('[data-action="extras"]');click('[data-action="daily"]');click('[data-upgrade="archers"]');
+        assert(el('levelNumber').textContent.startsWith('DAILY'),'Daily siege did not start');
+        const day=el('levelNumber').textContent.slice('DAILY · '.length);
+        await playSiegeUsingHints();
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).dailyBest[day]>0,'Daily best score was not saved');
+        log('Daily siege is playable and saves a date-specific score');
+        click('[data-action="extras"]');click('[data-action="endless"]');click('[data-upgrade="archers"]');
+        for(let round=1;round<=3;round++){
+          assert(el('levelNumber').textContent.includes('ROUND '+round),'Endless round counter is wrong');
+          await playSiegeUsingHints();click('[data-action="next"]');
+        }
+        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Endless recovery did not offer refitting');
+        click('[data-upgrade="gate"]');
+        assert(el('levelNumber').textContent.includes('ROUND 4')&&el('hearts').dataset.value==='3','Recovery did not restore hearts and advance to round four');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).endlessBest.round===3,'Endless best cleared round was not saved');
+        click('#pauseButton');click('[data-action="restart"]');
+        assert(el('levelNumber').textContent.includes('ROUND 1')&&el('score').textContent==='0','Restart did not begin a fresh endless run');
+        click('#pauseButton');click('[data-action="title"]');click('[data-action="extras"]');click('[data-challenge="bare"]');
+        assert(el('upgradeStatus').hidden,'Restricted-upgrade challenge applied an upgrade');
+        log('Endless rounds, recovery, restart and challenge restrictions work');
       }catch(error){
         failure=error;log(error?.message||String(error),'fail');
       }finally{

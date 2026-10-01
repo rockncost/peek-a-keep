@@ -1,5 +1,9 @@
 # Where Peek-a-Keep can grow
 
+**Version 1.4 implements this first expansion.** The design below is retained as the rationale. Mortars, capped repair wagons, the three-phase Moving Fortress, three campaign routes and terrain rules, cosmetic banner colors, endless defense, daily sieges, and three challenge banners are playable. See [README.md](README.md) for controls and exact rules.
+
+Next steps should follow player feedback: tune the boss's counterattack windows and route balance, add more authored challenge formations, and consider distinct flag emblems as additional cosmetic rewards. Currency, grinding, large upgrade trees, accounts and multiplayer remain deferred.
+
 Keep the one-button rule: hide to survive, rise to fire. New content should change when the player makes that decision. Extra health alone makes battles longer; new attack rhythms make them interesting.
 
 ## Recommended first expansion: The Moving Fortress
