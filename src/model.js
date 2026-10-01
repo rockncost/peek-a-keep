@@ -1,8 +1,8 @@
 import { UPGRADE_UNLOCK_LEVEL, validUpgrade } from './upgrades.js';
-import { CHALLENGES, routeConfig, seededRandom } from './content.js';
+import { routeConfig, seededRandom } from './content.js';
 
 /** Pure, deterministic game rules. All times are seconds and positions are 0–1. */
-export const TOTAL_LEVELS = 13;
+export const TOTAL_LEVELS = 19;
 
 // Each ranged unit changes the rhythm; rams trade all ranged attacks for durability.
 export const ENEMY_TYPES = Object.freeze({
@@ -34,20 +34,20 @@ export const LEVEL_CONFIGS = Object.freeze([
   level('The decoy battery',3.7,5.9,22,0,['mortar','cannon','mortar','ram','ballista','mortar','cannon','armored']),
   level('The convoy',3.5,5.8,22,0,['armored','support','ram','mortar','double','ballista','armored','volley','support','mortar']),
   level('The Moving Fortress',5.5,6.5,22,0,['armored','mortar','boss']),
+  {...level('The old mountain keep',3.8,5.4,20,0,['cannon','armored','double','ram','volley','ballista','armored','double','mortar']),terrain:'mountain',noUpgrade:true,brief:'The mountain outpost has no workshop. Use the longer shell flight to counterattack.'},
+  {...level('The wounded courtyard',3.9,5.6,20,0,['cannon','double','armored','ram','volley','ballista','mortar','armored','double']),terrain:'courtyard',hearts:2,brief:'This battered outpost has two hearts. Read both lanes before rising.'},
+  {...level('The bridge convoy',3.5,5.6,21,0,['cannon','ram','armored','ram','double','ram','mortar','ram','ballista','support']),terrain:'river',brief:'Four rams are crossing the bridge. Keep firing through their reload windows.'},
+  {...level('The siege muster',3.8,5.8,22,0,['cannon','mortar','ram','ballista','armored','volley','double','mortar','ballista','armored','volley','support']),terrain:'mountain',brief:'A fixed mixed battery combines slow mortar arcs and fast bolts. Each retry keeps the same formation.'},
+  {...level('The long watch',3.8,5.6,20,0,['cannon','double','ram','armored','cannon','double','volley','ballista','ram','armored','mortar','support','mortar','volley','armored','ram','ballista','double']),terrain:'river',waveEnds:[6,12],brief:'Three waves. Clear the field to recover three hearts between waves.'},
+  {...level('The royal siege',4.8,5.8,22,0,['mortar','armored','volley','boss']),terrain:'courtyard',brief:'The fortress returns with artillery escorts. Clear them, then strike its exposed reload.'},
 ]);
 
 export function getLevelConfig(levelNumber,route=null) {
   const number=Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(Number(levelNumber) || 1)));
   const base=LEVEL_CONFIGS[number-1];
-  return number>=4&&number<=12?routeConfig(base,route,number):{...base,terrain:number===13?'courtyard':'plain'};
-}
-
-export function getChallengeConfig(id){
-  const challenge=CHALLENGES[id];
-  const config=getLevelConfig(challenge.level,challenge.route);
-  if(id!=='convoy')return config;
-  const formation=[...config.formation];formation.splice(2,0,'ram','ram','ram');
-  return {...config,formation,total:formation.length,spawnInterval:3.4};
+  if(route&&number>=4&&number<=12)return routeConfig(base,route,number);
+  const terrain=base.terrain||(number<=3?'plain':number<=6?'river':number<=9?'mountain':number===11?'mountain':number===12?'river':'courtyard');
+  return {...base,terrain};
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -64,12 +64,13 @@ export class GameModel {
     this.config = options.config || getLevelConfig(level,options.route);
     this.spawnInterval = this.config.spawnInterval;
     this.shotTimer = 0.15;
+    this.waveIndex=0;
     this.duckStarted = -Infinity;
-    upgrade = level >= UPGRADE_UNLOCK_LEVEL || options.mode ? validUpgrade(upgrade) : null;
+    upgrade = this.config.noUpgrade?null:level >= UPGRADE_UNLOCK_LEVEL || options.mode ? validUpgrade(upgrade) : null;
     this.riseSpeed = upgrade === 'counterweight' ? 6 : 4;
     this.fireInterval = upgrade === 'archers' ? 0.55 : 0.68;
     this.state = {
-      phase: 'playing', level, time: 0, hearts: clamp(options.hearts??3,1,3), score: 0, kills: 0,
+      phase: 'playing', level, time: 0, hearts: clamp(options.hearts??this.config.hearts??3,1,3), score: 0, kills: 0,
       total: this.config.total,
       enemies: [], projectiles: [], arrows: [],
       exposure: 1, holding: false, power: false, combo: 0, perfects: 0,
@@ -198,7 +199,10 @@ export class GameModel {
     s.time += dt;
     s.exposure = clamp(s.exposure + (s.holding ? -5 : this.riseSpeed) * dt, 0, 1);
     this.spawnTimer -= dt;
-    if (this.spawned < s.total && this.spawnTimer <= 0) {
+    const waveBoundary=this.config.waveEnds?.[this.waveIndex];
+    const waveWaiting=this.spawned===waveBoundary;
+    if(waveWaiting&&s.enemies.length===0&&s.projectiles.length===0){this.waveIndex++;s.hearts=3;s.gateShield=s.upgrade==='gate'?1:0;this.spawnTimer=2;this.emit('recovery',{wave:this.waveIndex+1});}
+    if (!waveWaiting && this.spawned < s.total && this.spawnTimer <= 0) {
       this.spawnEnemy();
       this.spawnTimer += this.spawnInterval;
     }

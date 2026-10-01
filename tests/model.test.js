@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, LEVEL_CONFIGS } from '../src/model.js';
+import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, LEVEL_CONFIGS, getLevelConfig } from '../src/model.js';
 import { simulate } from '../scripts/balance-report.mjs';
 import { UPGRADES, validUpgrade } from '../src/upgrades.js';
 
-function run(model, policy = () => false, limit = 100) {
+function run(model, policy = () => false, limit = 140) {
   const dt = 1 / 60;
   while (model.state.phase === 'playing' && model.state.time < limit) {
     model.setHolding(policy(model.state));
@@ -28,15 +28,15 @@ test('doing nothing loses; hiding forever also loses', () => {
   }
 });
 
-test('a readable timing policy can win every level with three hearts', () => {
+test('a readable timing policy wins every siege with its full starting hearts', () => {
   for (let level = 1; level <= TOTAL_LEVELS; level++) {
     for (const seed of [1234, 7, 99]) {
       const state = run(new GameModel(level, seed), timingPolicy);
       assert.equal(state.phase, 'won', `level ${level}, seed ${seed}`);
-      assert.equal(state.hearts, 3, `level ${level}, seed ${seed}`);
+      assert.equal(state.hearts, getLevelConfig(level).hearts||3, `level ${level}, seed ${seed}`);
       assert.equal(state.kills, state.total);
       assert.ok(state.perfects > 0);
-      assert.ok(state.time > 25 && state.time < 90, `duration ${state.time}`);
+      assert.ok(state.time > 25 && state.time < 130, `duration ${state.time}`);
     }
   }
 });
@@ -283,7 +283,7 @@ test('each single upgrade preserves a completable later campaign', () => {
       for(const seed of [7,99,1234]) {
         const state=run(new GameModel(level, seed, upgrade), timingPolicy);
         assert.equal(state.phase, 'won', `${upgrade}, siege ${level}, seed ${seed}`);
-        assert.equal(state.hearts, 3);
+        assert.equal(state.hearts, getLevelConfig(level).hearts||3);
         assert.equal(state.kills, state.total);
       }
     }

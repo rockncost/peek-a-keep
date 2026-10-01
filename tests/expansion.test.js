@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameModel, getLevelConfig, getChallengeConfig, LEVEL_CONFIGS } from '../src/model.js';
-import { ROUTES, CHALLENGES, dailyDate, dailyConfig, endlessConfig, approachX } from '../src/content.js';
+import { GameModel, getLevelConfig, LEVEL_CONFIGS } from '../src/model.js';
+import { ROUTES, approachX } from '../src/content.js';
 import { restoreProgress, recordResult } from '../src/progress.js';
 
 function play(model,limit=180){
@@ -52,43 +52,15 @@ test('boss armor blocks arrows, reload exposes it, half health adds a third shot
   boss.hp=10;model.update(.01);assert.equal(boss.bossPhase,'ram');assert.equal(boss.speed,.028);
   const before=model.state.projectiles.length;model.update(6);assert.ok(model.state.projectiles.length<=before);
 });
-test('daily seeds use UTC dates, stay reproducible, and sampled days are completable',()=>{
-  assert.equal(dailyDate(new Date('2026-10-01T00:30:00+03:00')),'2026-09-30');
-  assert.deepEqual(dailyConfig('2026-10-01'),dailyConfig('2026-10-01'));
-  assert.notDeepEqual(dailyConfig('2026-10-01'),dailyConfig('2026-10-02'));
-  for(let day=1;day<=20;day++){
-    const {config,seed}=dailyConfig('2026-10-'+String(day).padStart(2,'0'));
-    for(const upgrade of ['archers','gate','counterweight']){
-      const s=play(new GameModel(13,seed,upgrade,{config,mode:'daily'}));assert.equal(s.phase,'won',`day ${day}, ${upgrade}`);assert.equal(s.hearts,3);
-    }
-  }
-});
-test('endless escalates composition and pressure, with playable opening rounds and recurring bosses',()=>{
-  assert.ok(endlessConfig(7).formation.includes('mortar')||endlessConfig(8).formation.includes('mortar'));
-  assert.ok(endlessConfig(20).spawnInterval<endlessConfig(1).spawnInterval);
-  assert.deepEqual(endlessConfig(9).formation,['boss']);assert.deepEqual(endlessConfig(18).formation,['boss']);
-  for(let round=1;round<=9;round++)assert.equal(play(new GameModel(13,7,'archers',{config:endlessConfig(round),mode:'endless',round})).phase,'won',`round ${round}`);
-});
-test('authored challenges are winnable under their restrictions, including all four rams',()=>{
-  for(const [id,c] of Object.entries(CHALLENGES)){
-    const config=getChallengeConfig(id),s=play(new GameModel(c.level,7,c.noUpgrade?null:'archers',{config,mode:'challenge',hearts:c.hearts}));
-    assert.equal(s.phase,'won',id);assert.equal(s.hearts,c.hearts);
-    if(id==='convoy')assert.equal(s.ramKills,4);
-    if(c.noUpgrade)assert.equal(s.upgrade,null);
-  }
-});
 test('legacy saves preserve real volume and progression, including unlocking the expansion after siege ten',()=>{
   const old={unlocked:10,completed:10,best:{10:1234},upgrade:'gate',musicVolume:.03,sfxVolume:.25};
   const saved=restoreProgress(old);assert.equal(saved.unlocked,11);assert.equal(saved.completed,10);assert.equal(saved.best[10],1234);
   assert.equal(saved.musicVolume,.03);assert.equal(saved.sfxVolume,.25);assert.equal(saved.upgrade,'gate');
   assert.deepEqual(saved.colors,['blue']);assert.equal(restoreProgress({routes:{4:'__proto__'},cosmetic:'unknown'}).cosmetic,'blue');
 });
-test('side-mode records and cosmetic rewards never advance campaign progress; daily history is bounded',()=>{
-  const saved=restoreProgress(null),state={phase:'won',level:13,score:1000,hearts:3,ramKills:1,ramBreaches:0,maxCombo:5};
-  assert.equal(recordResult(saved,state,{kind:'daily',date:'2026-10-01'}).length,3);
-  recordResult(saved,state,{kind:'endless',round:3,score:2000});recordResult(saved,state,{kind:'challenge',challenge:'brave'});
-  assert.equal(saved.unlocked,1);assert.equal(saved.completed,0);assert.equal(saved.endlessBest.score,3000);assert.equal(saved.endlessBest.round,3);assert.equal(saved.challengeBest.brave,1000);
-  for(let day=2;day<=25;day++)recordResult(saved,state,{kind:'daily',date:'2026-10-'+String(day).padStart(2,'0')});
-  assert.equal(Object.keys(saved.dailyBest).length,14);
-  recordResult(saved,{...state,phase:'lost',score:600},{kind:'endless',round:4,score:3000});assert.equal(saved.endlessBest.round,3);
+test('campaign wins award colors and preserve the best siege score',()=>{
+  const saved=restoreProgress(null),state={phase:'won',level:4,score:1000,hearts:3,ramKills:1,ramBreaches:0,maxCombo:5};
+  assert.equal(recordResult(saved,state,{kind:'campaign'}).length,3);
+  assert.equal(saved.unlocked,5);assert.equal(saved.completed,4);
+  recordResult(saved,{...state,score:500},{kind:'campaign'});assert.equal(saved.best[4],1000);
 });

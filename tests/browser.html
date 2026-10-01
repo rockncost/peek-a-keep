@@ -17,7 +17,7 @@
 <body data-status="idle">
   <main>
     <h1>Browser integration checks</h1>
-    <p>Tests controls, sound, campaign routes, the fortress, daily and endless modes in a 390 × 780 iframe. Allow about six minutes.</p>
+    <p>Tests the single campaign, hidden tester access, restrictions, wave recovery, save reset and audio in a portrait iframe. Allow about three minutes.</p>
     <button id="runChecks">Run checks</button>
     <div id="testStatus" role="status">Ready.</div>
     <ol id="log" aria-live="polite"></ol>
@@ -84,13 +84,13 @@
     }
     async function playSiegeUsingHints(siege=1){
       let pendingDuckAt=0,holding=false,perfectSeen=false,bossSeen=false;
-      const end=performance.now()+90000;
+      const end=performance.now()+140000;
       while(performance.now()<end){
         const menu=el('overlay');
         if(visible(el('bossStatus')))bossSeen=true;
         if(visible(menu)&&menu.querySelector('.result-stats')){
           keyboard('keyup','Space');
-          assert(menu.textContent.includes(siege===13?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
+          assert(menu.textContent.includes(siege===19?'Long live the keep!':'Still standing.'),`Timing policy lost siege ${siege}`);
           const perfectCount=Number(menu.querySelectorAll('.result-stats strong')[1]?.textContent);
           assert(perfectCount>0||perfectSeen,'No perfect duck was recorded');
           if(siege===13)assert(bossSeen,'Fortress boss bar did not appear');
@@ -150,138 +150,50 @@
         click('[data-action="settings-back"]');
         log('Settings has independent saved sliders, accurate readouts, silent music, reset, and a cannon preview');
         if(new URLSearchParams(location.search).has('audio-only'))return;
-        if(!new URLSearchParams(location.search).has('expansion-only')){
-        click('[data-action="play"]');
-        await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Start button did not enter gameplay');
-        assert(el('levelNumber').textContent.includes('01'),'Fresh game did not start siege 1');
-        log('Start enters siege 1');
-
-        keyboard('keydown','Space');await expectHeld(true);
-        keyboard('keyup','Space');await expectHeld(false);
-        log('Space holds and releases the castle');
-        pointer('pointerdown');await expectHeld(true);
-        pointer('pointercancel');await expectHeld(false);
-        log('Touch pointer cancellation releases the castle');
-
-        keyboard('keydown','Space');keyboard('keydown','ArrowDown');pointer('pointerdown');
-        await expectHeld(true);keyboard('keyup','Space');await sleep(45);
-        assert(el('duckButton').getAttribute('aria-pressed')==='true','Releasing one key incorrectly cancelled another hold');
-        pointer('pointercancel');await sleep(45);
-        assert(el('duckButton').getAttribute('aria-pressed')==='true','Cancelling touch incorrectly cancelled the held ArrowDown key');
-        keyboard('keyup','ArrowDown');await expectHeld(false);
-        log('Simultaneous keyboard and pointer holds release independently');
-
-        keyboard('keydown','KeyP');keyboard('keyup','KeyP');
-        await until(()=>Boolean(doc().querySelector('[data-action="resume"]')),'P did not open the pause menu');
-        const frozenHUD=hudSnapshot();await sleep(1450);
-        assert(hudSnapshot()===frozenHUD,'Gameplay HUD changed while paused');
-        click('[data-action="settings"]');volume('sfxVolume',25);await sleep(250);
-        assert(hudSnapshot()===frozenHUD,'Opening settings advanced the paused siege');
-        assert(el('backgroundMusic').paused,'Paused settings resumed background music');
-        click('[data-action="settings-back"]');
-        assert(doc().querySelector('[data-action="resume"]'),'Settings did not return to the paused siege');
-        log('Pause settings keep the siege frozen and music paused');
-        click('[data-action="guide"]');
-        assert(doc().querySelectorAll('.enemy-entry').length===9,'Enemy guide did not show all nine types');
-        assert(doc().querySelector('.guide-note').textContent.includes('2-damage'),'Enemy guide did not explain charged damage');
-        click('[data-action="guide-back"]');
-        assert(doc().querySelector('[data-action="resume"]'),'Guide did not return to the paused siege');
-        assert(hudSnapshot()===frozenHUD,'Opening the guide advanced the paused siege');
-        log('Enemy guide explains nine types and damage; returning preserves the paused siege');
-        click('[data-action="resume"]');
-        await until(()=>!visible(el('overlay'))&&visible(el('controls')),'Resume did not return to gameplay');
-        log('Pause freezes the HUD; resume returns to gameplay');
-
-        click('#pauseButton');click('[data-action="restart"]');
-        await until(()=>!visible(el('overlay')),'Restart did not close the menu');
-        assert(el('score').textContent==='0'&&el('hearts').dataset.value==='3','Restart did not reset score and hearts');
-        assert(el('waveLabel').textContent.startsWith('0 /'),'Restart did not reset the defeated count');
-        log('Restart restores the initial siege state');
-        log('Playing a full siege through visible INCOMING / ALL CLEAR hints…','info');
-        await playSiegeUsingHints();
-
+        assert(!doc().querySelector('[data-action="extras"]'),'Extra modes still appear on the title');
         click('[data-action="levels"]');
-        assert(!doc().querySelector('[data-level="2"]').disabled,'Winning siege 1 did not unlock siege 2');
-        assert(doc().querySelector('[data-level="3"]').disabled,'Winning siege 1 unexpectedly unlocked siege 3');
-        log('Victory unlocks siege 2, while siege 3 stays locked');
+        assert(doc().querySelectorAll('.level-choice').length===19,'Campaign does not have 19 sieges');
+        assert(doc().querySelector('[data-level="19"]').disabled,'Final siege was unlocked before cheat');
+        assert(!doc().querySelector('[data-change-route]'),'Route choice remains');
+        click('[data-action="title"]');click('[data-action="settings"]');
+        const spot=doc().querySelector('.secret-access');
+        assert(win().getComputedStyle(spot).opacity==='0','Tester spot is visible');
+        for(let i=0;i<4;i++)click('[data-action="test-access"]');
+        assert(!JSON.parse(localStorage.getItem(SAVE_KEY)).testAccess,'Cheat activated too early');
+        click('[data-action="test-access"]');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).testAccess,'Five taps did not enable tester access');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).unlocked===1,'Cheat overwrote real unlock progress');
+        click('[data-action="settings-back"]');click('[data-action="levels"]');
+        assert(doc().querySelectorAll('.level-choice:not(:disabled)').length===19,'Cheat did not enable every siege');
+        click('[data-level="14"]');assert(el('upgradeStatus').hidden,'Unequipped outpost has an upgrade');
+        click('#pauseButton');click('[data-action="title"]');click('[data-action="levels"]');click('[data-level="15"]');
+        assert(el('hearts').dataset.value==='2','Damaged courtyard did not start with two hearts');
+        click('#pauseButton');click('[data-action="settings"]');
+        for(let i=0;i<5;i++)click('[data-action="test-access"]');
+        click('[data-action="settings-back"]');assert(doc().querySelector('[data-action="resume"]'),'Tester toggle lost the paused siege');
+        click('[data-action="title"]');click('[data-action="settings"]');
+        for(let i=0;i<5;i++)click('[data-action="test-access"]');
         await loadGame();click('[data-action="levels"]');
-        assert(!doc().querySelector('[data-level="2"]').disabled,'Siege 2 unlock was lost on reload');
-        log('Unlocked siege persists after reloading the actual game');
-
-        // A deterministic starting point immediately before the first milestone.
-        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:3,completed:2,best:{1:123},muted:true}));
-        await loadGame();click('[data-action="play"]');
-        log('Playing siege 3 to verify the actual upgrade milestone…','info');
-        await playSiegeUsingHints(3);
-        click('[data-action="next"]');
-        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Milestone did not offer three upgrades');
-        click('[data-upgrade="gate"]');
-        assert(doc().querySelectorAll('[data-route]').length===3,'First route fork did not appear');
-        click('[data-route="river"]');
-        await until(()=>el('levelNumber').textContent.includes('04'),'Upgrade choice did not begin siege 4');
-        assert(el('upgradeStatus').textContent.includes('BLOCK READY'),'Reinforced gate was not fitted to siege 4');
-        click('#pauseButton');
-        assert(doc().querySelector('.pause-upgrade').textContent.includes('Reinforced gate'),'Pause menu did not explain the active upgrade');
-        assert(el('backgroundMusic').paused,'Music continued while the siege was paused');
-        log('Winning siege 3 opens the workshop; a choice starts siege 4 with a fresh gate block');
-
-        await loadGame();click('[data-action="workshop"]');
-        assert(doc().querySelector('[data-upgrade="gate"]').getAttribute('aria-pressed')==='true','Chosen upgrade did not survive reload');
-        click('[data-upgrade="archers"]');
-        const changedSave=JSON.parse(localStorage.getItem(SAVE_KEY));
-        assert(changedSave.upgrade==='archers'&&changedSave.unlocked===4&&changedSave.best[1]===123,'Changing upgrade damaged the existing save');
-        click('[data-action="play"]');
-        assert(el('upgradeStatus').textContent.includes('Twin archers'),'Swapped upgrade did not replace the old one');
-        assert(!el('upgradeStatus').textContent.includes('gate'),'Upgrades stacked unexpectedly');
-        click('#pauseButton');click('[data-action="title"]');click('[data-action="levels"]');click('[data-level="1"]');
-        assert(el('upgradeStatus').hidden,'Upgrade affected the introductory sieges');
-        log('Workshop swaps and reloads preserve progress; early siege replays keep the original rules');
-
-        // Test-only progress on the isolated 127.0.0.1 origin, restored in finally.
-        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:10,completed:9,best:{},muted:true}));
-        await loadGame();click('[data-action="play"]');
-        click('[data-route="mountain"]');
-        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Existing completed saves did not receive an upgrade choice');
-        click('[data-upgrade="counterweight"]');
-        await until(()=>el('levelNumber').textContent.includes('10'),'Final siege did not start');
-        log('Playing the mixed final formation through the real controls…','info');
-        await playSiegeUsingHints(10);
-        click('[data-action="levels"]');
-        assert(doc().querySelectorAll('.level-choice:not(:disabled)').length===11,'Siege ten did not unlock the expansion');
-        log('Original finale remains completable and now unlocks siege eleven');
-        }
-
-        localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked:13,completed:12,best:{},upgrade:'archers',muted:true}));
-        await loadGame();click('[data-action="play"]');
-        assert(el('terrainName').textContent==='Royal courtyard','Fortress terrain is missing');
-        log('Playing all fortress phases through real controls…','info');
-        await playSiegeUsingHints(13);
-        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).completed===13,'Boss victory did not complete campaign');
-        click('[data-action="title"]');click('[data-action="wardrobe"]');
-        assert(!doc().querySelector('[data-color="emerald"]').disabled,'Three-heart reward did not unlock');
-        click('[data-color="emerald"]');
-        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).cosmetic==='emerald','Castle color selection was not saved');
-        log('Fortress victory, campaign completion and cosmetic rewards work');
-        click('[data-action="title"]');click('[data-action="extras"]');click('[data-action="daily"]');click('[data-upgrade="archers"]');
-        assert(el('levelNumber').textContent.startsWith('DAILY'),'Daily siege did not start');
-        const day=el('levelNumber').textContent.slice('DAILY · '.length);
-        await playSiegeUsingHints();
-        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).dailyBest[day]>0,'Daily best score was not saved');
-        log('Daily siege is playable and saves a date-specific score');
-        click('[data-action="extras"]');click('[data-action="endless"]');click('[data-upgrade="archers"]');
-        for(let round=1;round<=3;round++){
-          assert(el('levelNumber').textContent.includes('ROUND '+round),'Endless round counter is wrong');
-          await playSiegeUsingHints();click('[data-action="next"]');
-        }
-        assert(doc().querySelectorAll('[data-upgrade]').length===3,'Endless recovery did not offer refitting');
-        click('[data-upgrade="gate"]');
-        assert(el('levelNumber').textContent.includes('ROUND 4')&&el('hearts').dataset.value==='3','Recovery did not restore hearts and advance to round four');
-        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).endlessBest.round===3,'Endless best cleared round was not saved');
-        click('#pauseButton');click('[data-action="restart"]');
-        assert(el('levelNumber').textContent.includes('ROUND 1')&&el('score').textContent==='0','Restart did not begin a fresh endless run');
-        click('#pauseButton');click('[data-action="title"]');click('[data-action="extras"]');click('[data-challenge="bare"]');
-        assert(el('upgradeStatus').hidden,'Restricted-upgrade challenge applied an upgrade');
-        log('Endless rounds, recovery, restart and challenge restrictions work');
+        assert(!doc().querySelector('[data-level="18"]').disabled,'Tester access did not persist after reload');
+        log('Single campaign, invisible five-tap access, persistence and restricted outposts work');
+        click('[data-level="18"]');
+        log('Playing three endurance waves through real controls…','info');
+        await playSiegeUsingHints(18);
+        assert(el('waveLabel').textContent.includes('Wave 3 / 3'),'Endurance did not advance through three waves');
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).completed===0,'Test victory changed campaign completion');
+        click('[data-action="levels"]');click('[data-level="19"]');
+        log('Playing final fortress siege through real controls…','info');
+        await playSiegeUsingHints(19);
+        assert(JSON.parse(localStorage.getItem(SAVE_KEY)).unlocked===1,'Final test victory unlocked campaign');
+        log('Endurance recovery and final fortress are playable without changing test progress');
+        click('[data-action="title"]');click('[data-action="settings"]');click('[data-action="reset-save"]');
+        click('[data-action="cancel-reset"]');assert(JSON.parse(localStorage.getItem(SAVE_KEY)).testAccess,'Cancelling reset deleted saves');
+        click('[data-action="reset-save"]');click('[data-action="confirm-reset"]');
+        assert(localStorage.getItem(SAVE_KEY)===null,'Reset left the save record behind');
+        assert(el('backgroundMusic').volume===.08,'Reset did not restore audio defaults');
+        click('[data-action="levels"]');assert(doc().querySelector('[data-level="2"]').disabled,'Reset left campaign unlocked');
+        click('[data-action="title"]');assert(!doc().querySelector('[data-action="workshop"]'),'Reset left workshop unlocked');
+        log('Visible reset confirms, cancels safely, clears tester access and restores fresh defaults');
       }catch(error){
         failure=error;log(error?.message||String(error),'fail');
       }finally{

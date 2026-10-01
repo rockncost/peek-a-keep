@@ -2,7 +2,7 @@
 
 A portrait 3D castle game about knowing when to disappear. Pop up to fire at an approaching siege army, then sink your whole castle underground before its cannonballs arrive. A last-moment duck earns a powered return volley. Hiding forever will not save you: siege carts keep rolling toward the gate.
 
-Thirteen sieges introduce nine engines, ending with the Moving Fortress boss. Choose campaign routes through a bridge, mountain pass, or royal courtyard, then replay in endless defense, a date-seeded daily siege, and optional challenges. Progress, scores, routes, equipment, castle colors, and sound settings are saved locally in your browser. The game uses simple geometric models, bundled Three.js, synthesized effects, and the supplied **Hammer and Gate** background track; it makes no external network requests at runtime.
+One 19-siege campaign introduces nine engines and follows an authored journey through open roads, narrow bridges, winding mountain passes and alternating courtyard lanes. Late defenses combine restricted equipment, a damaged keep, reinforced convoys, mixed artillery and a three-wave endurance siege before the final Moving Fortress. There are no separate mode or route selectors. Progress, scores, upgrades, colors and audio settings stay local. The game uses bundled Three.js, simple geometric models, synthesized effects and the supplied **Hammer and Gate** track, with no external runtime requests.
 
 ## Controls
 
@@ -16,31 +16,30 @@ Designed for portrait phones, with mouse and keyboard support on desktop. A mode
 
 Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for **2 damage**, shown by a larger cyan projectile and cyan damage number. Every full-health enemy needs multiple hits; an injured enemy can still be finished by one arrow. Early ducks are safe, but do not earn the bonus and consume valuable firing time. Three hits or breaches end a siege; victory restores your hearts for the next one. Enemies signal a shot with a glowing fuse and ground ring. Twin cannons fire twice; volley carts fire three spaced shots. Use the **Enemy guide** on the title or pause menu for their strengths.
 
-## Version 1.4: The Moving Fortress
+## Version 1.5: one campaign
 
-The original ten base formations are preserved. Three new sieges follow them:
+Terrain is now assigned by the campaign. Sieges 1–3 teach the original controls on an open road; 4–6 teach the bridge queue; 7–9 use a slower winding mountain road with 15% longer shell flight; 10 onward combine terrains with the new enemy mechanics. Courtyard attackers alternate between two lanes. The original siege numbers and saved unlocks are retained.
 
-- **11 · The decoy battery:** a 6-HP mortar launches high, slow shells. Watch the landing ring and listen for the descending whistle before impact. It appears alone before other engines join.
-- **12 · The convoy:** a 5-HP repair wagon heals injured engines close to it by one HP, up to three times. Its green banner opens for three seconds after a successful repair; archers automatically prioritize it then.
-- **13 · The Moving Fortress:** a 40-HP rolling castle. Its armored salvo blocks arrows. Release during the golden weak-point reload to deal damage. At half health it turns red and fires three shells per salvo. At one-quarter health it stops firing and advances as a ram. The boss bar shows health and phase.
+The former extra-mode ideas become six authored campaign defenses after siege 13:
 
-After sieges 3, 6, and 9, choose an upgrade and a route for the next three sieges. Each route shows its rule and a suggested upgrade. Routes can be changed from **Choose a siege**:
-
-| Route | Rule |
+| Siege | Defense |
 | --- | --- |
-| River crossing | A visible narrow bridge slows and queues engines. Its formation replaces one light cannon with an ironclad. |
-| Mountain pass | Enemies take a slower winding approach; artillery shells fly 15% longer. |
-| Royal courtyard | Engines alternate between two marked lanes, with an extra ram. |
+| 14 · The old mountain keep | No upgrade at this outpost. Longer shell flight provides time to counterattack. |
+| 15 · The wounded courtyard | A damaged keep starts with two hearts. Read the alternating lanes. |
+| 16 · The bridge convoy | Four reinforced rams cross the narrow bridge, supported by artillery and a repair wagon. |
+| 17 · The siege muster | A fixed mixed battery combines mortar arcs and quick bolts. Retries keep the same formation; no daily calendar or extra menu. |
+| 18 · The long watch | Three escalating waves. The next waits until every engine and shell is gone, then restores three hearts and a gate brace, with a two-second recovery break. |
+| 19 · The royal siege | The fortress returns with artillery escorts for the campaign finale. |
 
-**More defenses** opens replay modes. All allow choosing an upgrade before starting, except the challenge that disables it:
+Mortars launch high shells with a landing ring and descending whistle. Repair wagons have three one-HP repairs and become an automatic priority target for three seconds after repairing. The fortress blocks arrows during its armored salvo, exposes a golden weak point while reloading, fires a third shot after half health, and becomes a ram at one-quarter health.
 
-- **Endless defense:** deterministic escalating formations, with tougher compositions before extra HP. Hearts carry between rounds. Every three victories restore three hearts and offer refitting; every ninth round is a fortress. Local best score and cleared round are saved. Restart begins a fresh run.
-- **Daily siege:** everyone receives the same date-seeded formation and terrain. The date changes at midnight UTC and stays fixed when retrying a run. The last 14 dates' local best winning scores are kept; there is no online leaderboard.
-- **Challenge banners:** two hearts, no upgrades, or a four-ram convoy. They have separate local scores and do not unlock campaign sieges.
+The workshop still offers one fitted upgrade. The no-equipment siege temporarily disables it without changing your saved choice. Hearts reset for each new siege, except the authored two-heart defense. Castle colors remain cosmetic rewards for three hearts, stopping a ram without a ram breach, or five perfect ducks without taking damage.
 
-**Castle colors** rewards successful defenses: emerald for three hearts, copper for destroying a ram without any ram breach, and violet for a streak of five perfect ducks. Colors affect the keep's cloth and flags only. Rewards can be earned in any mode.
+### Testing controls
 
-Existing saves keep their progress, scores, upgrade and actual audio levels. Completing the old tenth siege unlocks siege 11 automatically. The expansion uses the same hold/release control throughout.
+Open **Settings**, then tap the invisible **44 × 44 area in the upper-left corner of the game** five times, with less than two seconds between taps. A toast confirms tester access. **Choose a siege** now permits all 19 defenses, including after reload. Repeat the five taps to disable it. Test victories do not change campaign progress, records or rewards; introductory and restricted siege rules still apply. A fresh tester keep uses Twin archers where upgrades are allowed.
+
+**Reset all saves** is visible in Settings. Its confirmation screen clears this game's local save, including progress, scores, equipment, colors, legacy extra-mode records, tester access, mute and volume choices. Cancel preserves everything. No other browser data is touched.
 
 ## Version 1.3.1: volume display
 
@@ -68,7 +67,7 @@ Win siege **3** to open the workshop before siege 4. Choose **one** upgrade:
 
 Only one upgrade is active at a time. The **Castle workshop** on the title lets you swap between sieges. Winning sieges **6** and **9** also offers a fresh choice before advancing. Equipment and an upgrade label appear on the keep; the gate label shows whether its block is ready or used. The pause menu explains the fitted upgrade.
 
-Upgrades apply to sieges **4–13** and extra modes, including restarts. Replaying the first three sieges keeps their original rules. Existing saves retain all unlocked levels and scores; if you already reached siege 4 or later, continuing offers the upgrade choice. The gate block renews on every new siege or endless round.
+Upgrades apply to sieges **4–19**, except the unequipped outpost, including restarts. Replaying the first three sieges keeps their original rules. Existing saves retain all unlocked levels and scores; if you already reached siege 4 or later, continuing offers the upgrade choice. The gate block renews on every new siege .
 
 `assets/Hammer_and_Gate.mp3` is the user-supplied main background music. It loops quietly alongside the effects at the selected volume. Its bytes are copied unchanged from the supplied file and included in the itch.io archive.
 
@@ -92,9 +91,9 @@ Open **http://localhost:4173**. No `npm install` or build step is needed. Use a 
 
 ## Development checks
 
-Run `npm test` for deterministic rules, audio, and save checks, including all 13 sieges, every route/upgrade pairing, capped repairs, boss phases, sampled daily sieges, and opening endless rounds. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, audio, routes, the fortress, daily/endless progression, restrictions, cosmetics and save persistence. Allow about six minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
+Run `npm test` for deterministic rules, audio, and save checks, including all 19 sieges, every route/upgrade pairing, capped repairs, boss phases, campaign restrictions, endurance recovery and tester isolation. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, audio, hidden tester access, campaign restrictions, endurance waves, the final fortress and save reset. Allow about three minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
 
-Run `npm run balance` for a simulation report covering enemy health, simultaneous threats, approach distance, time under cover, and precise versus cautious timing policies. Simulations verify that all thirteen sieges remain completable; they do not replace human difficulty feedback.
+Run `npm run balance` for a simulation report covering enemy health, simultaneous threats, approach distance, time under cover, and precise versus cautious timing policies. Simulations verify that all nineteen sieges remain completable; they do not replace human difficulty feedback.
 
 The browser check uses a portrait iframe and simulated touch pointer events. A real iOS/Android device check is still recommended before publishing.
 
