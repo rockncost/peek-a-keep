@@ -11,5 +11,5 @@ model.state.projectiles=[{id:100,type:'mortar',lane:-1,from:.62,progress:.52,ela
 const scene=new GameScene(document.getElementById('scene'));let last=0;
 document.querySelectorAll('[data-terrain]').forEach(b=>b.addEventListener('click',()=>{model.state.terrain=b.dataset.terrain;document.getElementById('region').textContent=ROUTES[b.dataset.terrain].name;}));
 document.querySelectorAll('[data-weather]').forEach(b=>b.addEventListener('click',()=>{model.state.environment=b.dataset.weather;model.state.terrain=b.dataset.weather==='fog'?'mountain':b.dataset.weather==='rain'?'river':'courtyard';document.getElementById('region').textContent=b.textContent+' · '+ROUTES[model.state.terrain].name;}));
-function frame(now){scene.render(model.state,Math.min((now-last)/1000||0,.05));last=now;requestAnimationFrame(frame);}requestAnimationFrame(frame);
+function frame(now){scene.render(model.state,Math.min((now-last)/1000||0,.05));last=now;document.getElementById('game').dataset.rainHeight=scene.rain.geometry.attributes.position.array[1].toFixed(3);requestAnimationFrame(frame);}requestAnimationFrame(frame);
 </script></body></html>

@@ -258,7 +258,7 @@ export class GameScene {
     this.renderer.setClearColor(weather.color);this.scene.fog.color.setHex(weather.color);this.scene.fog.near=weather.near;this.scene.fog.far=weather.far;
     this.ambient.intensity=state.environment==='dusk'?1.05:1.8;this.sun.intensity=state.environment==='dusk'?1.35:state.environment==='rain'?1.7:2.4;
     this.rain.visible=state.environment==='rain';
-    if(this.rain.visible&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const a=this.rain.geometry.attributes.position;for(let i=0;i<a.count;i+=2){const base=i*3,y=(a.array[base+1]-dt*9+10)%10;a.array[base+1]=y;a.array[base+4]=y+.65;}a.needsUpdate=true;}
+    if(this.rain.visible){const a=this.rain.geometry.attributes.position;for(let i=0;i<a.count;i+=2){const base=i*3,y=(a.array[base+1]-dt*9+10)%10;a.array[base+1]=y;a.array[base+4]=y+.65;}a.needsUpdate=true;}
     for(const [id,group] of Object.entries(this.regions))group.visible=state.terrain===id;
     this.mat(PALETTE.blue,true).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);
     this.mat(PALETTE.blue,true,{side:THREE.DoubleSide}).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);

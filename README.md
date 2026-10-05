@@ -18,7 +18,7 @@ Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for *
 
 ## Version 1.7.1: visible rain and deeper branches
 
-Campaign weather is authored, with no extra menu choices: rain in sieges 6/12/16/18, mountain fog in 9/11/14/17, and dusk in 10/13/15/19. Rain halves the visible fuse warning and reveals mortar landing rings later. Fog conceals distant engines. Synthesized wind-up cues complement incoming shells and the always-readable INCOMING prompt; sound is optional. Weather never changes impact timing. Rain uses bright falling 3D streaks. Reduced-motion players see stationary streaks instead of losing the weather effect.
+Campaign weather is authored, with no extra menu choices: rain in sieges 6/12/16/18, mountain fog in 9/11/14/17, and dusk in 10/13/15/19. Rain halves the visible fuse warning and reveals mortar landing rings later. Fog conceals distant engines. Synthesized wind-up cues complement incoming shells and the always-readable INCOMING prompt; sound is optional. Weather never changes impact timing. Rain uses bright falling 3D streaks. Rain falls continuously during play, including when the system requests reduced motion. Camera shake still respects reduced-motion settings.
 
 A fresh keep begins with **zero stars and zero upgrades**. Win siege 1 to open the workshop. The tutorial siege always uses the basic keep, even on replay. All purchased ranks stack from siege 2 onward; siege 14 temporarily disables equipment without deleting purchases.
 
