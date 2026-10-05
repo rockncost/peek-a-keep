@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
+import { ENVIRONMENTS } from './environment.js';
 import { CASTLE_COLORS, approachX } from './content.js';
 
 const PALETTE = { grass:0x8bab60, grassSide:0x68864e, earth:0xa78a62, path:0xd9ad79, stone:0xffe4af, stoneLight:0xffefd0, stoneDark:0xd3b987, blue:0x428cae, wood:0x946441, metal:0x475157, red:0xd76a4d, gold:0xffd369 };
@@ -18,14 +19,16 @@ export class GameScene {
     this.camera=new THREE.OrthographicCamera(-9,9,16,-16,.1,110);
     this.camera.position.set(5.5,24,28); this.camera.lookAt(0,0,-3.3);
     this.baseCamera=this.camera.position.clone();
-    this.scene.add(new THREE.HemisphereLight(0xfff8dc,0x6e8f70,1.8));
-    const light=new THREE.DirectionalLight(0xfff0ca,2.4);light.position.set(-10,24,8);light.castShadow=true;
+    this.ambient=new THREE.HemisphereLight(0xfff8dc,0x6e8f70,1.8);this.scene.add(this.ambient);
+    const light=this.sun=new THREE.DirectionalLight(0xfff0ca,2.4);light.position.set(-10,24,8);light.castShadow=true;
     const shadowSize=matchMedia('(pointer: coarse)').matches?1024:2048;
     light.shadow.mapSize.set(shadowSize,shadowSize);light.shadow.camera.left=-22;light.shadow.camera.right=22;light.shadow.camera.top=25;light.shadow.camera.bottom=-22;light.shadow.normalBias=.035;light.shadow.bias=-.0003;
     light.target.position.set(0,0,-4);this.scene.add(light,light.target);
     this.materials=new Map();this.boxGeo=new THREE.BoxGeometry(1,1,1);this.sphereGeo=new THREE.IcosahedronGeometry(1,1);
     this.particles=[];this.damageNumbers=[];this.numberTextures=new Map();this.enemyMeshes=new Map();this.ballMeshes=new Map();this.arrowMeshes=new Map();this.flags=[];
     this.buildTerrain();this.buildRegions();this.buildCastle();
+    const rainPositions=new Float32Array(180*3);for(let i=0;i<180;i++){rainPositions[i*3]=Math.sin(i*17)*7;rainPositions[i*3+1]=(i%19)*.45;rainPositions[i*3+2]=-22+(i%37);}
+    this.rain=new THREE.Points(new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(rainPositions,3)),new THREE.PointsMaterial({color:0xc5dfeb,size:.075,transparent:true,opacity:.65}));this.scene.add(this.rain);
     this.observer=new ResizeObserver(()=>this.resize());this.observer.observe(container);this.resize();
   }
   mat(color,castle=false,extra={}) {
@@ -251,12 +254,17 @@ export class GameScene {
   render(state,dt,events=[],menu=false){
     this.clock+=dt;
     this.terrain=state.terrain;
+    const weather=ENVIRONMENTS[state.environment]||ENVIRONMENTS.clear;
+    this.renderer.setClearColor(weather.color);this.scene.fog.color.setHex(weather.color);this.scene.fog.near=weather.near;this.scene.fog.far=weather.far;
+    this.ambient.intensity=state.environment==='dusk'?1.05:1.8;this.sun.intensity=state.environment==='dusk'?1.35:state.environment==='rain'?1.7:2.4;
+    this.rain.visible=state.environment==='rain'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(this.rain.visible){const a=this.rain.geometry.attributes.position;for(let i=0;i<a.count;i++)a.array[i*3+1]=(a.array[i*3+1]-dt*8+9)%9;a.needsUpdate=true;}
     for(const [id,group] of Object.entries(this.regions))group.visible=state.terrain===id;
     this.mat(PALETTE.blue,true).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);
     this.mat(PALETTE.blue,true,{side:THREE.DoubleSide}).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);
     const X=(lane,p)=>approachX(lane,p,state.terrain);
     const target=-3.95*(1-state.exposure);this.castle.position.y=target;
-    this.gateBrace.visible=state.upgrades?.gate===5&&state.gateShield>0;
+    this.gateBrace.visible=state.upgrades?.gate>0&&state.gateShield>0;
     this.counterweight.visible=state.upgrades?.counterweight>0;
     this.archers.forEach(a=>a.scale.setScalar(1+.02*(state.upgrades?.archers||0)));
     this.castle.rotation.z=state.exposure>.02&&state.exposure<.97?Math.sin(this.clock*45)*.012:0;
@@ -267,8 +275,8 @@ export class GameScene {
       mesh.position.set(X(e.lane,e.progress),.1+Math.sin(this.clock*12+e.id)*.015,Z(e.progress));
       if(e.type==='boss'){mesh.userData.weakPoint.visible=e.bossPhase!=='salvo';mesh.userData.armor.visible=e.bossPhase==='salvo';mesh.userData.flag.material.color.setHex(e.enraged?0xd65f48:mesh.userData.accent);}
       if(e.type==='support')mesh.userData.flag.scale.setScalar(e.exposedUntil>state.time?1.3:1);
-      mesh.userData.spark.visible=e.warning>.02;mesh.userData.spark.scale.setScalar(.7+e.warning*(.5+Math.sin(this.clock*35)*.3));
-      mesh.userData.halo.material.opacity=e.warning*.75;mesh.userData.halo.scale.setScalar(1+e.warning*.18);
+      mesh.userData.spark.visible=e.warning>weather.warningThreshold;mesh.userData.spark.scale.setScalar(.7+e.warning*(.5+Math.sin(this.clock*35)*.3));
+      mesh.userData.halo.material.opacity=(e.warning>weather.warningThreshold?e.warning*.75:0);mesh.userData.halo.scale.setScalar(1+e.warning*.18);
       mesh.userData.hp.scale.x=1.13*Math.max(0,e.hp/e.maxHp);mesh.userData.hp.position.x=-.565+mesh.userData.hp.scale.x/2;
       mesh.userData.hp.material.color.setHex(this.clock<mesh.userData.hitUntil?0xffffff:0xffe8a6);
     });
@@ -284,8 +292,9 @@ export class GameScene {
       if(p.type==='mortar'){
         const shadow=new THREE.Mesh(new THREE.RingGeometry(.4,.57,24),new THREE.MeshBasicMaterial({color:0xffd481,transparent:true,opacity:.7,side:THREE.DoubleSide,depthTest:false}));shadow.rotation.x=-Math.PI/2;g.add(shadow);g.userData.shadow=shadow;
       }
+      g.traverse(child=>{if(child.material){child.material=child.material.clone();child.material.fog=false;}});
       return g;
-    },(m,p)=>{const height=1.15+Math.sin(p.progress*Math.PI)*(p.type==='mortar'?4.3:p.type==='ballista'?.65:1.4);m.position.set(X(p.lane,p.from)*(1-p.progress*.8),height,Z(p.from)+(6.3-Z(p.from))*p.progress);if(p.type!=='ballista'&&p.type!=='mortar')m.rotation.z+=dt*3;m.userData.trail.visible=true;if(m.userData.shadow){m.userData.shadow.position.set(-m.position.x,.23-height,6.3-m.position.z);m.userData.shadow.scale.setScalar(1.6-p.progress*.65);m.userData.shadow.material.opacity=.3+p.progress*.6;}});
+    },(m,p)=>{const height=1.15+Math.sin(p.progress*Math.PI)*(p.type==='mortar'?4.3:p.type==='ballista'?.65:1.4);m.position.set(X(p.lane,p.from)*(1-p.progress*.8),height,Z(p.from)+(6.3-Z(p.from))*p.progress);if(p.type!=='ballista'&&p.type!=='mortar')m.rotation.z+=dt*3;m.userData.trail.visible=true;if(m.userData.shadow){m.userData.shadow.position.set(-m.position.x,.23-height,6.3-m.position.z);m.userData.shadow.scale.setScalar(1.6-p.progress*.65);m.userData.shadow.material.opacity=state.environment==='rain'&&p.progress<.65?0:.3+p.progress*.6;}});
     this.sync(this.arrowMeshes,state.arrows,a=>{
       const g=new THREE.Group(),color=a.powered?0x9df3ff:0xffefbb;
       const shaft=this.box(g,0,0,0,a.powered?.18:.12,a.powered?.18:.12,1.2,color);shaft.material=new THREE.MeshBasicMaterial({color});

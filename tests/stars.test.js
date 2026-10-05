@@ -24,9 +24,9 @@ test('purchase checks balance, prerequisites and caps; mixed branches stack in s
   const stats=upgradeStats(saved.upgrades);assert.ok(Math.abs(stats.fireInterval-.68/1.15)<1e-9);assert.equal(stats.riseSpeed,4.16);assert.equal(stats.gate,false);
   assert.equal(buyUpgrade(saved,'__proto__'),false);assert.equal(upgradeRanks({archers:Infinity,nerve:-1,gate:99}).gate,5);
 });
-test('all blueprints have no effect for stages one through four and activate only at five',()=>{
+test('advanced upgrades activate immediately and improve on subsequent ranks',()=>{
   for(const [id,stat] of [['ballista','piercing'],['springboard','scatter'],['gate','gate']]){
-    for(let rank=1;rank<5;rank++)assert.equal(upgradeStats({[id]:rank})[stat],false);
+    for(let rank=1;rank<5;rank++)assert.equal(upgradeStats({[id]:rank})[stat],true);
     assert.equal(upgradeStats({[id]:5})[stat],true);
   }
   assert.equal(new GameModel(1,7,{archers:5,gate:5}).fireInterval,.68);
@@ -34,14 +34,14 @@ test('all blueprints have no effect for stages one through four and activate onl
 });
 test('completed offensive blueprints spread damage between targets; they cannot bypass fortress armor',()=>{
   function setup(ranks){const m=new GameModel(4,7,ranks);m.spawnTimer=Infinity;m.state.enemies=[{id:100,type:'ram',hp:100,maxHp:100,speed:0,progress:.4,lane:0},{id:101,type:'ram',hp:100,maxHp:100,speed:0,progress:.3,lane:0},{id:102,type:'ram',hp:100,maxHp:100,speed:0,progress:.2,lane:0}];return m;}
-  const incomplete=setup({ballista:4,springboard:4});incomplete.state.power=true;incomplete.update(.52);assert.equal(incomplete.state.enemies[1].hp,100);
+  const first=setup({springboard:1});first.state.power=true;first.update(.52);assert.deepEqual(first.state.enemies.map(e=>e.hp),[98,99,100]);
   const scatter=setup({springboard:5});scatter.state.power=true;scatter.update(.52);assert.deepEqual(scatter.state.enemies.map(e=>e.hp),[98,99,99]);
   const piercing=setup({ballista:5});piercing.shotsFired=3;piercing.update(.52);assert.deepEqual(piercing.state.enemies.map(e=>e.hp),[99,99,100]);
   const boss=new GameModel(13,7,{ballista:5,springboard:5},{config:{...getLevelConfig(13),formation:['boss'],total:1}});boss.spawnEnemy();boss.spawnTimer=Infinity;boss.shotsFired=3;boss.state.power=true;boss.update(.52);assert.equal(boss.state.enemies[0].hp,40);
 });
 test('finished portcullis blocks exactly one breach and renews; cannonballs still hurt',()=>{
   const m=new GameModel(4,7,{gate:5});m.spawnTimer=Infinity;m.hurt('cannonball');assert.equal(m.state.hearts,2);assert.equal(m.state.gateShield,1);m.hurt('breach');assert.equal(m.state.hearts,2);m.hurt('breach');assert.equal(m.state.hearts,1);
-  assert.equal(new GameModel(5,7,{gate:5}).state.gateShield,1);assert.equal(new GameModel(5,7,{gate:4}).state.gateShield,0);
+  assert.equal(new GameModel(5,7,{gate:5}).state.gateShield,1);assert.equal(new GameModel(5,7,{gate:4}).state.gateShield,1);
 });
 test('campaign remains completable with one purchased rank per siege and with all construction finished',()=>{
   const saved=restoreProgress(null),full=Object.fromEntries(Object.keys(UPGRADES).map(id=>[id,5]));

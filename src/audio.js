@@ -70,6 +70,7 @@ export class GameAudio {
       if(details.enemyType==='ballista'){this.noiseBurst(0,.12,.1,'highpass',1600);this.tone(280,.15,'triangle',.07,90);}
       else this.cannonBlast(details.enemyType==='armored');
     }
+    if(type==='enemyWarning')this.tone(480,.25,'triangle',.035,850);
     if(type==='mortarWhistle')this.tone(1400,.75,'sine',.035,260);
     if(type==='repair'){this.tone(420,.2,'triangle',.03,630);}
     if(type==='armorBlock')this.tone(260,.08,'triangle',.025,170);

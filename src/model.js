@@ -1,4 +1,5 @@
 import { upgradeRanks, upgradeStats, starsForEnemy } from './upgrades.js';
+import { environmentFor } from './environment.js';
 import { routeConfig, seededRandom } from './content.js';
 
 /** Pure, deterministic game rules. All times are seconds and positions are 0–1. */
@@ -47,7 +48,7 @@ export function getLevelConfig(levelNumber,route=null) {
   const base=LEVEL_CONFIGS[number-1];
   if(route&&number>=4&&number<=12)return routeConfig(base,route,number);
   const terrain=base.terrain||(number<=3?'plain':number<=6?'river':number<=9?'mountain':number===11?'mountain':number===12?'river':'courtyard');
-  return {...base,terrain};
+  return {...base,terrain,environment:environmentFor(number)};
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -67,14 +68,14 @@ export class GameModel {
     this.waveIndex=0;
     this.duckStarted = -Infinity;
     const ranks=upgradeRanks(level===1||this.config.noUpgrade?null:upgrade);
-    this.stats=upgradeStats(ranks);this.shotsFired=0;
+    this.stats=upgradeStats(ranks);this.shotsFired=0;this.poweredShots=0;
     this.riseSpeed=this.stats.riseSpeed;this.fireInterval=this.stats.fireInterval;
     this.state = {
       phase: 'playing', level, time: 0, hearts: clamp(options.hearts??this.config.hearts??3,1,3), score: 0, stars:0, kills: 0,
       total: this.config.total,
       enemies: [], projectiles: [], arrows: [],
       exposure: 1, holding: false, power: false, combo: 0, perfects: 0,
-      progress: 0, spawned: 0, upgrades:ranks, gateShield:this.stats.gate?1:0,
+      progress: 0, spawned: 0, upgrades:ranks, gateShield:this.stats.gate?1:0,gateReadyAt:0,environment:this.config.environment||'clear',
       terrain:this.config.terrain||'plain',mode:options.mode||'campaign',round:options.round||1,
       cosmetic:options.cosmetic||'blue',maxCombo:0,ramKills:0,ramBreaches:0,
     };
@@ -150,7 +151,7 @@ export class GameModel {
   hurt(reason, details = {}) {
     const s = this.state;
     if (reason === 'breach' && s.gateShield > 0) {
-      s.gateShield -= 1;
+      s.gateShield -= 1;s.gateReadyAt=s.time+this.stats.gateCooldown;
       this.emit('gateBlock', details);
       return;
     }
@@ -197,6 +198,7 @@ export class GameModel {
   tick(dt) {
     const s = this.state;
     s.time += dt;
+    if(this.stats.gate&&!s.gateShield&&s.time>=s.gateReadyAt)s.gateShield=1;
     s.exposure = clamp(s.exposure + (s.holding ? -this.stats.duckSpeed : this.riseSpeed) * dt, 0, 1);
     this.spawnTimer -= dt;
     const waveBoundary=this.config.waveEnds?.[this.waveIndex];
@@ -235,7 +237,9 @@ export class GameModel {
         }
       }
       enemy.attackTimer -= dt;
+      const wasWarning=enemy.warning;
       enemy.warning = clamp(1 - enemy.attackTimer / archetype.warningTime, 0, 1);
+      if(!wasWarning&&enemy.warning>0)this.emit('enemyWarning');
       if (enemy.attackTimer <= 0) {
         this.fireEnemy(enemy);
         enemy.burstRemaining = archetype.burstCount - 1;
@@ -275,11 +279,12 @@ export class GameModel {
       });
       this.shotsFired++;
       const extraTargets=new Set();
-      if(this.stats.piercing&&this.shotsFired%4===0){
+      if(this.stats.piercing&&this.shotsFired%this.stats.pierceInterval===0){
         const other=byDistance.find(e=>e.id!==target.id&&Math.abs(e.progress-target.progress)<.22&&(e.lane===target.lane||s.terrain==='river'));
         if(other)extraTargets.add(other);
       }
-      if(this.stats.scatter&&powered)for(const other of byDistance.filter(e=>e.id!==target.id).slice(0,2))extraTargets.add(other);
+      if(powered)this.poweredShots++;
+      if(this.stats.scatter&&powered)for(const other of byDistance.filter(e=>e.id!==target.id).slice(0,1+(this.poweredShots%this.stats.scatterInterval===0?1:0)))extraTargets.add(other);
       for(const other of extraTargets)s.arrows.push({id:this.nextId++,lane:other.lane,progress:0,targetId:other.id,powered:false,damage:1,elapsed:0,duration:this.stats.arrowDuration,targetProgress:other.progress});
       this.shotTimer = this.fireInterval;
       this.emit('shot', { targetId: target.id, lane: target.lane, powered, damage: powered ? 2 : 1 });

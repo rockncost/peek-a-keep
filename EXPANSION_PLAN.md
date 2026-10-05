@@ -8,4 +8,4 @@ The former challenge restrictions become late outposts with an explained reason:
 
 Existing siege numbers and saves remain useful. Tester access and a visible reset control support direct feedback on every defense. See [README.md](README.md) for their operation and exact campaign rules.
 
-Future additions should deepen this journey with authored enemy interactions and better readable trajectories. Version 1.6 adds a compact star-funded workshop with incremental improvements and five-stage blueprints. Keep required grinding, separate modes and multiplayer deferred.
+Future additions should deepen this journey with authored enemy interactions and better readable trajectories. Version 1.7 adds authored rain, fog and dusk; the star-funded workshop now activates every rank immediately, including advanced upgrades unlocked by three small branch ranks. Keep required grinding, separate modes and multiplayer deferred.

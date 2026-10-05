@@ -17,7 +17,7 @@
 <body data-status="idle">
   <main>
     <h1>Browser integration checks</h1>
-    <p>Tests star rewards, purchases, blueprints, campaign defenses, tester access, reset and audio in a portrait iframe. Allow about four minutes.</p>
+    <p>Tests star rewards, purchases, advanced upgrades, campaign defenses, tester access, reset and audio in a portrait iframe. Allow about four minutes.</p>
     <button id="runChecks">Run checks</button>
     <div id="testStatus" role="status">Ready.</div>
     <ol id="log" aria-live="polite"></ol>
@@ -169,13 +169,13 @@
         assert(doc().querySelector('[data-upgrade="archers"]').textContent.includes('1 / 5'),'Paid rank was lost after reload');
         localStorage.setItem(SAVE_KEY,JSON.stringify({currencyVersion:1,completed:3,stars:100,upgrades:{archers:3,ballista:3},muted:true}));
         await loadGame();click('[data-action="workshop"]');
-        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('No effect yet'),'Incomplete blueprint UI hides its delayed effect');
+        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Buy rank 4'),'Incomplete blueprint UI hides its delayed effect');
         click('[data-upgrade="ballista"]');
-        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Activates blueprint'),'Last blueprint stage is not explained');
+        assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Buy rank 5'),'Last blueprint stage is not explained');
         click('[data-upgrade="ballista"]');
         purchase=JSON.parse(localStorage.getItem(SAVE_KEY));assert(purchase.upgrades.ballista===5&&purchase.stars===0,'Blueprint completion has wrong rank or price');
         assert(doc().querySelector('[data-upgrade="ballista"]').disabled,'Completed blueprint can still be bought');
-        log('Stars, affordable first upgrade, persistence, prerequisites and five-stage blueprint UI work');
+        log('Stars, affordable first upgrade, persistence, prerequisites and immediate advanced upgrade UI work');
         localStorage.setItem(SAVE_KEY,JSON.stringify({muted:true}));await loadGame();
         assert(!doc().querySelector('[data-action="extras"]'),'Extra modes still appear on the title');
         click('[data-action="levels"]');

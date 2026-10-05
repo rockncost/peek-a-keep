@@ -1,4 +1,5 @@
 import { GameModel, TOTAL_LEVELS, ENEMY_TYPES, getLevelConfig } from './model.js';
+import { ENVIRONMENTS } from './environment.js';
 import { GameScene } from './scene.js';
 import { GameAudio, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME } from './audio.js';
 import { volumePercent, volumeFromPercent } from './volume-ui.js';
@@ -51,7 +52,7 @@ function startLevel(level){
   $('overlay').hidden=true;$('hud').hidden=false;$('controls').hidden=false;$('pauseButton').disabled=false;
   $('levelNumber').textContent='SIEGE '+String(level).padStart(2,'0')+' / '+TOTAL_LEVELS+(saved.testAccess?' · TEST':'');
   $('levelName').textContent=config.label;
-  toast(config.brief||({4:'River crossing · Engines queue on the bridge.',7:'Mountain pass · Winding road, longer shell flights.',10:'Royal courtyard · Watch both approach lanes.',11:'Mortars arc high. Watch the landing shadow.',12:'Repair wagons expose their banner after healing.',13:'The fortress opens its weak point to reload.'}[level])||introductions[level]||'Stand your ground',4);
+  toast((config.environment!=='clear'?ENVIRONMENTS[config.environment].hint+' ': '')+(config.brief||({4:'River crossing · Engines queue on the bridge.',7:'Mountain pass · Winding road, longer shell flights.',10:'Royal courtyard · Watch both approach lanes.',11:'Mortars arc high. Watch the landing shadow.',12:'Repair wagons expose their banner after healing.',13:'The fortress opens its weak point to reload.'}[level])||introductions[level]||'Stand your ground'),6);
   updateHUD();
 }
 function wardrobe(){
@@ -61,7 +62,7 @@ function wardrobe(){
 function restartRun(){startLevel(model.state.level);}
 function pause(){
   if(mode!=='playing')return;releaseAll();mode='paused';
-  setMenu(`<div class="panel pause-panel"><span class="eyebrow">TAKE A BREATHER</span><span class="medal">Ⅱ</span><h1>The siege can wait.</h1><p>Your little kingdom is right where you left it.</p>${upgradeCount(model.state.upgrades)?`<div class="pause-upgrade">${upgradeCount(model.state.upgrades)} purchased ranks. Blueprints activate only at 5/5.</div>`:''}<button class="primary-button" data-action="resume">Back to the battlements</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button><button class="secondary-button" data-action="restart">Restart siege</button><button class="secondary-button" data-action="title">Return to title</button></div>`);
+  setMenu(`<div class="panel pause-panel"><span class="eyebrow">TAKE A BREATHER</span><span class="medal">Ⅱ</span><h1>The siege can wait.</h1><p>Your little kingdom is right where you left it.</p>${upgradeCount(model.state.upgrades)?`<div class="pause-upgrade">${upgradeCount(model.state.upgrades)} purchased ranks. Every purchased rank is active.</div>`:''}<button class="primary-button" data-action="resume">Back to the battlements</button><button class="secondary-button" data-action="guide">Enemy guide</button><button class="secondary-button" data-action="settings">Settings</button><button class="secondary-button" data-action="restart">Restart siege</button><button class="secondary-button" data-action="title">Return to title</button></div>`);
 }
 function resume(){if(mode!=='paused')return;mode='playing';$('overlay').hidden=true;$('controls').hidden=false;$('pauseButton').disabled=false;audio.setActive(true);audio.unlock();}
 function settings(returnTo=null){
@@ -78,9 +79,9 @@ function workshop(nextLevel=null){
   if(!workshopUnlocked())return;
   releaseAll();workshopLevel=nextLevel;mode='workshop';$('hud').hidden=true;
   const r=saved.upgrades;
-  setMenu('<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Little improvements.</h1><div class="star-wallet">✦ '+saved.stars+' stars</div><p>All purchases stack. Every rank costs '+UPGRADE_COST+' stars.<br>Blueprints do nothing until all five stages are built.</p>'+Object.entries(BRANCHES).map(([branch,info])=>'<section class="upgrade-branch"><h2>'+info.icon+' '+info.name+'</h2>'+Object.entries(UPGRADES).filter(([,u])=>u.branch===branch).map(([id,u])=>{
+  setMenu('<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Little improvements.</h1><div class="star-wallet">✦ '+saved.stars+' stars</div><p>All purchases stack. Every rank costs '+UPGRADE_COST+' stars.<br>Every rank works immediately. Advanced upgrades unlock after 3 small ranks in their branch.</p>'+Object.entries(BRANCHES).map(([branch,info])=>'<section class="upgrade-branch"><h2>'+info.icon+' '+info.name+'</h2>'+Object.entries(UPGRADES).filter(([,u])=>u.branch===branch).map(([id,u])=>{
     const rank=r[id],full=rank===u.max,available=canBuild(r,id),affordable=saved.stars>=UPGRADE_COST;
-    return '<button class="upgrade-choice purchase-choice '+(full?'complete':'')+'" data-upgrade="'+id+'" '+(full||!available||!affordable?'disabled':'')+'><span class="upgrade-copy"><strong>'+u.name+' <small>'+rank+' / '+u.max+'</small></strong><span class="build-progress">'+Array.from({length:u.max},(_,i)=>'<i class="'+(i<rank?'built':'')+'"></i>').join('')+'</span><span>'+u.detail+'</span><b>'+(full?'COMPLETE':!available?'Requires 3 small ranks in this branch':u.blueprint?'Build stage '+(rank+1)+' · ✦ '+UPGRADE_COST+' · '+(rank<4?'No effect yet':'Activates blueprint'):'Buy rank '+(rank+1)+' · ✦ '+UPGRADE_COST)+'</b></span></button>';
+    return '<button class="upgrade-choice purchase-choice '+(full?'complete':'')+'" data-upgrade="'+id+'" '+(full||!available||!affordable?'disabled':'')+'><span class="upgrade-copy"><strong>'+u.name+' <small>'+rank+' / '+u.max+'</small></strong><span class="build-progress">'+Array.from({length:u.max},(_,i)=>'<i class="'+(i<rank?'built':'')+'"></i>').join('')+'</span><span>'+u.detail+'</span><b>'+(full?'COMPLETE':!available?'Requires 3 small ranks in this branch':'Buy rank '+(rank+1)+' · ✦ '+UPGRADE_COST)+'</b></span></button>';
   }).join('')+'</section>').join('')+'<button class="primary-button" data-action="workshop-continue">'+(nextLevel?'Continue to siege '+nextLevel:'Back to the keep')+'</button><div class="workshop-note">Earn stars by destroying engines. Every victory earns at least 50 stars. Replays also earn stars.</div></div>');
 }
 function levels(){
@@ -111,9 +112,9 @@ function updateHUD(){
   const s=model.state;
   const count=upgradeCount(s.upgrades);
   $('upgradeStatus').hidden=!count;
-  $('upgradeStatus').textContent=count?count+' improvement ranks'+(s.upgrades.gate===5?(s.gateShield?' · GATE READY':' · GATE USED'):''):'';
+  $('upgradeStatus').textContent=count?count+' improvement ranks'+(s.upgrades.gate>0?(s.gateShield?' · GATE READY':' · GATE USED'):''):'';
   $('score').textContent=(saved.stars+s.stars).toLocaleString();
-  $('terrainName').textContent=ROUTES[s.terrain]?.name||'Open road';
+  $('terrainName').textContent=(ROUTES[s.terrain]?.name||'Open road')+' · '+ENVIRONMENTS[s.environment].name;
   const boss=s.enemies.find(e=>e.type==='boss');$('bossStatus').hidden=!boss;
   if(boss){$('bossLabel').textContent='MOVING FORTRESS · '+(boss.bossPhase==='ram'?'FINAL RAM ADVANCE':boss.bossPhase==='reload'?'WEAK POINT OPEN':boss.enraged?'ENRAGED SALVO':'ARMORED SALVO');$('bossHealth').style.width=(boss.hp/boss.maxHp*100)+'%';$('bossValue').textContent=boss.hp+' / '+boss.maxHp;}
   if($('hearts').dataset.value!==String(s.hearts)){$('hearts').dataset.value=String(s.hearts);$('hearts').innerHTML=Array.from({length:3},(_,i)=>i<s.hearts?heart:heart.replace('<svg','<svg class="empty"')).join('');$('hearts').setAttribute('aria-label',`${s.hearts} hearts remaining`);}

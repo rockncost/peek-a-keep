@@ -16,23 +16,25 @@ Designed for portrait phones, with mouse and keyboard support on desktop. A mode
 
 Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for **2 damage**, shown by a larger cyan projectile and cyan damage number. Every full-health enemy needs multiple hits; an injured enemy can still be finished by one arrow. Early ducks are safe, but do not earn the bonus and consume valuable firing time. Three hits or breaches end a siege; victory restores your hearts for the next one. Enemies signal a shot with a glowing fuse and ground ring. Twin cannons fire twice; volley carts fire three spaced shots. Use the **Enemy guide** on the title or pause menu for their strengths.
 
-## Version 1.6: stars and small upgrades
+## Version 1.7: weather and immediate upgrades
+
+Campaign weather is authored, with no extra menu choices: rain in sieges 6/12/16/18, mountain fog in 9/11/14/17, and dusk in 10/13/15/19. Rain halves the visible fuse warning and reveals mortar landing rings later. Fog conceals distant engines. Synthesized wind-up cues complement incoming shells and the always-readable INCOMING prompt; sound is optional. Weather never changes impact timing. Reduced-motion players do not see moving rain.
 
 A fresh keep begins with **zero stars and zero upgrades**. Win siege 1 to open the workshop. The tutorial siege always uses the basic keep, even on replay. All purchased ranks stack from siege 2 onward; siege 14 temporarily disables equipment without deleting purchases.
 
-Destroyed engines drop stars: cannon 5, twin cannon 7, ram 11, ironclad/volley/ballista 9, mortar 11, repair wagon 13, fortress 90. Stars are banked at the result screen, including kills in a lost siege. Perfect ducks still power arrows but do not create currency. Each victory pays **at least 50 stars**: if enemy drops total less, a completion bonus makes up the difference. Replays pay too. Every purchase costs 50 stars, so each completed siege funds at least one remaining small rank or unlocked construction stage. Purchases are optional; continuing without buying remains possible.
+Destroyed engines drop stars: cannon 5, twin cannon 7, ram 11, ironclad/volley/ballista 9, mortar 11, repair wagon 13, fortress 90. Stars are banked at the result screen, including kills in a lost siege. Perfect ducks still power arrows but do not create currency. Each victory pays **at least 50 stars**: if enemy drops total less, a completion bonus makes up the difference. Replays pay too. Every purchase costs 50 stars, so each completed siege funds at least one remaining small rank or unlocked advanced rank. Purchases are optional; continuing without buying remains possible.
 
 There are **45 purchasable ranks** across three branches:
 
-| Branch | Small improvements, five ranks each | Five-stage blueprint |
+| Branch | Small improvements, five ranks each | Advanced upgrade |
 | --- | --- | --- |
-| The Barrage | Archer drills: +3% firing rate per rank. Fine fletching: +4% arrow speed per rank. | Piercing ballista: every fourth shot damages a nearby second engine with a 1-damage arrow. |
-| The Shadows | Counterweights: +4% rise speed per rank. Steady nerves: +0.02 seconds to the early edge of a perfect duck per rank. | Kinetic springboard: a powered return shot scatters two extra 1-damage arrows at different engines. |
-| The Bastion | Deep foundations: +3% duck speed per rank. Rampart screens: 1% more protection during ducking per rank. | Iron portcullis: block one breach per siege; renew at endurance recovery. |
+| The Barrage | Archer drills: +3% firing rate per rank. Fine fletching: +4% arrow speed per rank. | Piercing ballista: every eighth to fourth shot damages a nearby second engine with a 1-damage arrow. |
+| The Shadows | Counterweights: +4% rise speed per rank. Steady nerves: +0.02 seconds to the early edge of a perfect duck per rank. | Kinetic springboard: a powered return shot scatters one to two extra 1-damage arrows at different engines. |
+| The Bastion | Deep foundations: +3% duck speed per rank. Rampart screens: 1% more protection during ducking per rank. | Iron portcullis: block a breach; rebuild in 80–40 seconds and renew at endurance recovery. |
 
-Buy three small ranks in a branch to unlock its blueprint. **Construction stages 1–4 have no effect. Stage 5 activates the whole blueprint.** The workshop shows five segments, prerequisites, prices, completion, and the delayed effect explicitly. Mix branches freely. Bonuses add relative to the base values: five archer ranks give +15% rate, not five compounding multipliers. Ordinary arrow damage and hearts are unchanged. Bonus arrows target different engines; they cannot bypass closed fortress armor.
+Buy three small ranks in a branch to unlock its advanced upgrade. Every purchased rank works immediately. Piercing cadence improves from every eighth shot to every fourth; springboard adds one arrow at rank one and increases the frequency of a second; portcullis blocks a breach and rebuilds in 80 seconds at rank one, improving to 40 seconds at rank five. Bonus arrows cannot bypass fortress armor. Existing purchased ranks and stars are preserved.
 
-Older saves retain progression, scores, colors, tester access and actual audio settings. The old free fitted upgrade is replaced by the new tree; migration grants **50 catch-up stars per previously completed siege**, with no free upgrade ranks. This credit is applied only once. Tester victories never grant stars or rewards. Reset clears the wallet and all construction stages.
+Older saves retain progression, scores, colors, tester access and actual audio settings. The old free fitted upgrade is replaced by the new tree; migration grants **50 catch-up stars per previously completed siege**, with no free upgrade ranks. This credit is applied only once. Tester victories never grant stars or rewards. Reset clears the wallet and all upgrade ranks.
 
 ## Version 1.5: one campaign
 
@@ -99,7 +101,7 @@ Open **http://localhost:4173**. No `npm install` or build step is needed. Use a 
 
 ## Development checks
 
-Run `npm test` for deterministic rules, audio, and save checks, including all 19 sieges, gradual and completed upgrade builds, star affordability, migration, capped repairs, boss phases, endurance recovery and tester isolation. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, first-victory earnings, purchases, blueprint UI, audio, hidden tester access, campaign restrictions, endurance waves, the final fortress and save reset. Allow about four minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
+Run `npm test` for deterministic rules, audio, and save checks, including all 19 sieges, gradual and completed upgrade builds, star affordability, migration, capped repairs, boss phases, endurance recovery and tester isolation. With the server running, open `http://127.0.0.1:4173/tests/browser.html` and click **Run checks** for real browser input, first-victory earnings, purchases, advanced upgrade UI, audio, hidden tester access, campaign restrictions, endurance waves, the final fortress and save reset. Allow about four minutes and keep that page visible until it finishes. The test restores its original save; using `127.0.0.1` isolates it from a game being played on `localhost`.
 
 Run `npm run balance` for a simulation report covering enemy health, simultaneous threats, approach distance, time under cover, and precise versus cautious timing policies. Simulations verify that all nineteen sieges remain completable; they do not replace human difficulty feedback.
 
