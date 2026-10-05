@@ -27,8 +27,8 @@ export class GameScene {
     this.materials=new Map();this.boxGeo=new THREE.BoxGeometry(1,1,1);this.sphereGeo=new THREE.IcosahedronGeometry(1,1);
     this.particles=[];this.damageNumbers=[];this.numberTextures=new Map();this.enemyMeshes=new Map();this.ballMeshes=new Map();this.arrowMeshes=new Map();this.flags=[];
     this.buildTerrain();this.buildRegions();this.buildCastle();
-    const rainPositions=new Float32Array(180*3);for(let i=0;i<180;i++){rainPositions[i*3]=Math.sin(i*17)*7;rainPositions[i*3+1]=(i%19)*.45;rainPositions[i*3+2]=-22+(i%37);}
-    this.rain=new THREE.Points(new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(rainPositions,3)),new THREE.PointsMaterial({color:0xc5dfeb,size:.075,transparent:true,opacity:.65}));this.scene.add(this.rain);
+    const rainPositions=new Float32Array(280*6);for(let i=0;i<280;i++){const x=Math.sin(i*17.31)*6.8,y=(i*1.731)%10,z=-22+(i*2.371)%35;rainPositions.set([x,y,z,x+.10,y+.65,z-.08],i*6);}
+    this.rain=new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(rainPositions,3)),new THREE.LineBasicMaterial({color:0xd9efff,transparent:true,opacity:.72,depthWrite:false,fog:false}));this.scene.add(this.rain);
     this.observer=new ResizeObserver(()=>this.resize());this.observer.observe(container);this.resize();
   }
   mat(color,castle=false,extra={}) {
@@ -257,8 +257,8 @@ export class GameScene {
     const weather=ENVIRONMENTS[state.environment]||ENVIRONMENTS.clear;
     this.renderer.setClearColor(weather.color);this.scene.fog.color.setHex(weather.color);this.scene.fog.near=weather.near;this.scene.fog.far=weather.far;
     this.ambient.intensity=state.environment==='dusk'?1.05:1.8;this.sun.intensity=state.environment==='dusk'?1.35:state.environment==='rain'?1.7:2.4;
-    this.rain.visible=state.environment==='rain'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if(this.rain.visible){const a=this.rain.geometry.attributes.position;for(let i=0;i<a.count;i++)a.array[i*3+1]=(a.array[i*3+1]-dt*8+9)%9;a.needsUpdate=true;}
+    this.rain.visible=state.environment==='rain';
+    if(this.rain.visible&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const a=this.rain.geometry.attributes.position;for(let i=0;i<a.count;i+=2){const base=i*3,y=(a.array[base+1]-dt*9+10)%10;a.array[base+1]=y;a.array[base+4]=y+.65;}a.needsUpdate=true;}
     for(const [id,group] of Object.entries(this.regions))group.visible=state.terrain===id;
     this.mat(PALETTE.blue,true).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);
     this.mat(PALETTE.blue,true,{side:THREE.DoubleSide}).color.setHex(CASTLE_COLORS[state.cosmetic]?.color||PALETTE.blue);

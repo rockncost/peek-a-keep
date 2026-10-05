@@ -16,10 +16,15 @@ export function upgradeRanks(value){
   return Object.fromEntries(Object.entries(UPGRADES).map(([id,u])=>[id,typeof data[id]==='number'&&Number.isFinite(data[id])?Math.max(0,Math.min(u.max,Math.floor(data[id]))):0]));
 }
 export function upgradeCount(ranks){return Object.values(upgradeRanks(ranks)).reduce((sum,n)=>sum+n,0);}
+export function branchRanks(ranks,id){
+  const r=upgradeRanks(ranks),branch=UPGRADES[id]?.branch;
+  return Object.entries(UPGRADES).filter(([,node])=>node.branch===branch&&!node.advanced).reduce((n,[key])=>n+r[key],0);
+}
+export function requiredBranchRanks(ranks,id){return UPGRADES[id]?.advanced?[3,5,7,9,10][upgradeRanks(ranks)[id]]??10:0;}
 export function canBuild(ranks,id){
   if(!Object.hasOwn(UPGRADES,id))return false;
   const u=UPGRADES[id],r=upgradeRanks(ranks);
-  return r[id]<u.max&&(!u.advanced||Object.entries(UPGRADES).filter(([,node])=>node.branch===u.branch&&!node.advanced).reduce((n,[key])=>n+r[key],0)>=3);
+  return r[id]<u.max&&(!u.advanced||branchRanks(r,id)>=requiredBranchRanks(r,id));
 }
 export function upgradeStats(value){
   const r=upgradeRanks(value);

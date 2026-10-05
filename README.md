@@ -16,9 +16,9 @@ Designed for portrait phones, with mouse and keyboard support on desktop. A mode
 
 Ordinary arrows deal **1 damage**. Last-second ducks charge the next arrow for **2 damage**, shown by a larger cyan projectile and cyan damage number. Every full-health enemy needs multiple hits; an injured enemy can still be finished by one arrow. Early ducks are safe, but do not earn the bonus and consume valuable firing time. Three hits or breaches end a siege; victory restores your hearts for the next one. Enemies signal a shot with a glowing fuse and ground ring. Twin cannons fire twice; volley carts fire three spaced shots. Use the **Enemy guide** on the title or pause menu for their strengths.
 
-## Version 1.7: weather and immediate upgrades
+## Version 1.7.1: visible rain and deeper branches
 
-Campaign weather is authored, with no extra menu choices: rain in sieges 6/12/16/18, mountain fog in 9/11/14/17, and dusk in 10/13/15/19. Rain halves the visible fuse warning and reveals mortar landing rings later. Fog conceals distant engines. Synthesized wind-up cues complement incoming shells and the always-readable INCOMING prompt; sound is optional. Weather never changes impact timing. Reduced-motion players do not see moving rain.
+Campaign weather is authored, with no extra menu choices: rain in sieges 6/12/16/18, mountain fog in 9/11/14/17, and dusk in 10/13/15/19. Rain halves the visible fuse warning and reveals mortar landing rings later. Fog conceals distant engines. Synthesized wind-up cues complement incoming shells and the always-readable INCOMING prompt; sound is optional. Weather never changes impact timing. Rain uses bright falling 3D streaks. Reduced-motion players see stationary streaks instead of losing the weather effect.
 
 A fresh keep begins with **zero stars and zero upgrades**. Win siege 1 to open the workshop. The tutorial siege always uses the basic keep, even on replay. All purchased ranks stack from siege 2 onward; siege 14 temporarily disables equipment without deleting purchases.
 
@@ -32,7 +32,7 @@ There are **45 purchasable ranks** across three branches:
 | The Shadows | Counterweights: +4% rise speed per rank. Steady nerves: +0.02 seconds to the early edge of a perfect duck per rank. | Kinetic springboard: a powered return shot scatters one to two extra 1-damage arrows at different engines. |
 | The Bastion | Deep foundations: +3% duck speed per rank. Rampart screens: 1% more protection during ducking per rank. | Iron portcullis: block a breach; rebuild in 80–40 seconds and renew at endurance recovery. |
 
-Buy three small ranks in a branch to unlock its advanced upgrade. Every purchased rank works immediately. Piercing cadence improves from every eighth shot to every fourth; springboard adds one arrow at rank one and increases the frequency of a second; portcullis blocks a breach and rebuilds in 80 seconds at rank one, improving to 40 seconds at rank five. Bonus arrows cannot bypass fortress armor. Existing purchased ranks and stars are preserved.
+Advanced ranks 1–5 require 3, 5, 7, 9, and 10 small ranks in the same branch respectively. Small upgrades remain freely available; advanced purchases do not count toward their own requirements. Existing purchased ranks remain active. Every purchased rank works immediately. Piercing cadence improves from every eighth shot to every fourth; springboard adds one arrow at rank one and increases the frequency of a second; portcullis blocks a breach and rebuilds in 80 seconds at rank one, improving to 40 seconds at rank five. Bonus arrows cannot bypass fortress armor. Existing purchased ranks and stars are preserved.
 
 Older saves retain progression, scores, colors, tester access and actual audio settings. The old free fitted upgrade is replaced by the new tree; migration grants **50 catch-up stars per previously completed siege**, with no free upgrade ranks. This credit is applied only once. Tester victories never grant stars or rewards. Reset clears the wallet and all upgrade ranks.
 

@@ -3,7 +3,7 @@ import { ENVIRONMENTS } from './environment.js';
 import { GameScene } from './scene.js';
 import { GameAudio, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME } from './audio.js';
 import { volumePercent, volumeFromPercent } from './volume-ui.js';
-import { UPGRADES, BRANCHES, UPGRADE_COST, upgradeCount, canBuild, buyUpgrade, siegeReward } from './upgrades.js';
+import { UPGRADES, BRANCHES, UPGRADE_COST, upgradeCount, branchRanks, requiredBranchRanks, canBuild, buyUpgrade, siegeReward } from './upgrades.js';
 
 import { ROUTES, CASTLE_COLORS } from './content.js';
 import { restoreProgress, recordResult } from './progress.js';
@@ -79,9 +79,9 @@ function workshop(nextLevel=null){
   if(!workshopUnlocked())return;
   releaseAll();workshopLevel=nextLevel;mode='workshop';$('hud').hidden=true;
   const r=saved.upgrades;
-  setMenu('<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Little improvements.</h1><div class="star-wallet">✦ '+saved.stars+' stars</div><p>All purchases stack. Every rank costs '+UPGRADE_COST+' stars.<br>Every rank works immediately. Advanced upgrades unlock after 3 small ranks in their branch.</p>'+Object.entries(BRANCHES).map(([branch,info])=>'<section class="upgrade-branch"><h2>'+info.icon+' '+info.name+'</h2>'+Object.entries(UPGRADES).filter(([,u])=>u.branch===branch).map(([id,u])=>{
+  setMenu('<div class="panel workshop-panel"><span class="eyebrow">THE CASTLE WORKSHOP</span><h1>Little improvements.</h1><div class="star-wallet">✦ '+saved.stars+' stars</div><p>All purchases stack. Every rank costs '+UPGRADE_COST+' stars.<br>Every rank works immediately. Advanced ranks require 3, 5, 7, 9, then 10 small ranks in their branch.</p>'+Object.entries(BRANCHES).map(([branch,info])=>'<section class="upgrade-branch"><h2>'+info.icon+' '+info.name+'</h2>'+Object.entries(UPGRADES).filter(([,u])=>u.branch===branch).map(([id,u])=>{
     const rank=r[id],full=rank===u.max,available=canBuild(r,id),affordable=saved.stars>=UPGRADE_COST;
-    return '<button class="upgrade-choice purchase-choice '+(full?'complete':'')+'" data-upgrade="'+id+'" '+(full||!available||!affordable?'disabled':'')+'><span class="upgrade-copy"><strong>'+u.name+' <small>'+rank+' / '+u.max+'</small></strong><span class="build-progress">'+Array.from({length:u.max},(_,i)=>'<i class="'+(i<rank?'built':'')+'"></i>').join('')+'</span><span>'+u.detail+'</span><b>'+(full?'COMPLETE':!available?'Requires 3 small ranks in this branch':'Buy rank '+(rank+1)+' · ✦ '+UPGRADE_COST)+'</b></span></button>';
+    return '<button class="upgrade-choice purchase-choice '+(full?'complete':'')+'" data-upgrade="'+id+'" '+(full||!available||!affordable?'disabled':'')+'><span class="upgrade-copy"><strong>'+u.name+' <small>'+rank+' / '+u.max+'</small></strong><span class="build-progress">'+Array.from({length:u.max},(_,i)=>'<i class="'+(i<rank?'built':'')+'"></i>').join('')+'</span><span>'+u.detail+'</span><b>'+(full?'COMPLETE':!available?'Requires '+requiredBranchRanks(r,id)+' small branch ranks · '+branchRanks(r,id)+' / '+requiredBranchRanks(r,id):'Buy rank '+(rank+1)+' · ✦ '+UPGRADE_COST)+'</b></span></button>';
   }).join('')+'</section>').join('')+'<button class="primary-button" data-action="workshop-continue">'+(nextLevel?'Continue to siege '+nextLevel:'Back to the keep')+'</button><div class="workshop-note">Earn stars by destroying engines. Every victory earns at least 50 stars. Replays also earn stars.</div></div>');
 }
 function levels(){

@@ -117,6 +117,25 @@
       let previousSave=null,haveSnapshot=false,failure=null;
       try{
         previousSave=localStorage.getItem(SAVE_KEY);haveSnapshot=true;
+        if(new URLSearchParams(location.search).has('upgrade-only')){
+          localStorage.setItem(SAVE_KEY,JSON.stringify({currencyVersion:1,completed:1,stars:1500,upgrades:{archers:3},muted:true}));
+          await loadGame();click('[data-action="workshop"]');
+          let small=3;
+          for(const threshold of [3,5,7,9,10]){
+            while(small<threshold){
+              assert(doc().querySelector('[data-upgrade="ballista"]').disabled,'Advanced rank unlocked too early');
+              assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Requires '+threshold+' small branch ranks'),'Next branch requirement is not shown');
+              const ranks=JSON.parse(localStorage.getItem(SAVE_KEY)).upgrades;
+              click('[data-upgrade="'+(ranks.archers<5?'archers':'fletching')+'"]');small++;
+            }
+            click('[data-upgrade="ballista"]');
+          }
+          const purchased=JSON.parse(localStorage.getItem(SAVE_KEY));
+          assert(purchased.upgrades.ballista===5&&purchased.stars===900,'Rank sequence or star spending is wrong');
+          assert(doc().querySelector('[data-upgrade="ballista"]').disabled,'Maximum advanced rank is purchasable');
+          log('All five advanced ranks enforce 3/5/7/9/10 small branch ranks through real workshop clicks');
+          return;
+        }
         localStorage.removeItem(SAVE_KEY);
         await loadGame();
         log('Fresh game initialized in a visible mobile iframe');
@@ -167,7 +186,7 @@
         assert(el('levelNumber').textContent.includes('02')&&el('upgradeStatus').textContent.includes('1 improvement'),'Purchase did not carry into siege two');
         await loadGame();click('[data-action="workshop"]');
         assert(doc().querySelector('[data-upgrade="archers"]').textContent.includes('1 / 5'),'Paid rank was lost after reload');
-        localStorage.setItem(SAVE_KEY,JSON.stringify({currencyVersion:1,completed:3,stars:100,upgrades:{archers:3,ballista:3},muted:true}));
+        localStorage.setItem(SAVE_KEY,JSON.stringify({currencyVersion:1,completed:3,stars:100,upgrades:{archers:5,fletching:5,ballista:3},muted:true}));
         await loadGame();click('[data-action="workshop"]');
         assert(doc().querySelector('[data-upgrade="ballista"]').textContent.includes('Buy rank 4'),'Incomplete blueprint UI hides its delayed effect');
         click('[data-upgrade="ballista"]');

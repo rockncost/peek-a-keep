@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ENVIRONMENTS,environmentFor} from '../src/environment.js';
 import {GameModel,getLevelConfig} from '../src/model.js';
-import {upgradeStats,canBuild} from '../src/upgrades.js';
+import {upgradeStats,canBuild,buyUpgrade,requiredBranchRanks} from '../src/upgrades.js';
+import {restoreProgress} from '../src/progress.js';
 test('weather is authored and leaves attack timing unchanged',()=>{
   assert.equal(environmentFor(1),'clear');assert.equal(environmentFor(6),'rain');assert.equal(environmentFor(9),'fog');assert.equal(environmentFor(19),'dusk');
   assert.ok(ENVIRONMENTS.rain.warningThreshold>ENVIRONMENTS.clear.warningThreshold);
@@ -16,4 +17,19 @@ test('each advanced rank improves its effect and prerequisites stay within its b
 });
 test('portcullis rebuilds only after its purchased cooldown',()=>{
   for(const rank of [1,5]){const m=new GameModel(4,7,{gate:rank});m.spawnTimer=Infinity;m.hurt('breach');assert.equal(m.state.hearts,3);m.update(m.stats.gateCooldown-.1);assert.equal(m.state.gateShield,0);m.update(.2);assert.equal(m.state.gateShield,1);m.hurt('breach');assert.equal(m.state.hearts,3);}
+});
+test('every advanced rank needs more small ranks in its own tree, without undoing old purchases',()=>{
+  for(const [advanced,a,b] of [['ballista','archers','fletching'],['springboard','counterweight','nerve'],['gate','foundations','screens']]){
+    const saved=restoreProgress({currencyVersion:1,completed:1,stars:2000});
+    for(const threshold of [3,5,7,9,10]){
+      assert.equal(requiredBranchRanks(saved.upgrades,advanced),threshold);
+      const below=threshold-1;saved.upgrades[a]=Math.min(5,below);saved.upgrades[b]=Math.max(0,below-5);
+      const balance=saved.stars,rank=saved.upgrades[advanced];assert.equal(buyUpgrade(saved,advanced),false);assert.equal(saved.stars,balance);assert.equal(saved.upgrades[advanced],rank);
+      saved.upgrades[a]=Math.min(5,threshold);saved.upgrades[b]=Math.max(0,threshold-5);
+      assert.equal(buyUpgrade(saved,advanced),true);assert.equal(saved.stars,balance-50);
+    }
+    assert.equal(buyUpgrade(saved,advanced),false);
+    const old=restoreProgress({currencyVersion:1,completed:3,stars:42,upgrades:{[advanced]:4,[a]:3}});
+    assert.equal(old.upgrades[advanced],4);assert.equal(old.stars,42);assert.equal(canBuild(old.upgrades,advanced),false);
+  }
 });
